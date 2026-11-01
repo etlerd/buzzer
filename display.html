@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Studio Display</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="display">
+  <section class="stage" id="stage">
+    <div class="result" id="result"></div>
+    <div class="phase" id="phase">Connecting…</div>
+    <div class="winner" id="winner"></div>
+    <div class="question" id="question"></div>
+  </section>
+  <aside class="side">
+    <div class="join" id="join">
+      <div class="muted">Join at</div>
+      <div class="qr" id="qr"></div>
+      <div class="room code" id="room"></div>
+    </div>
+    <ul class="board" id="board"></ul>
+    <span class="status" id="status" style="align-self:flex-start">Connecting…</span>
+  </aside>
+</div>
+<div class="sound-gate" id="soundGate">
+  <button class="primary" id="btnSound">Click to start (enables sound)</button>
+</div>
+<script src="js/vendor/mqtt.min.js"></script>
+<script src="js/vendor/qrcode.js"></script>
+<script src="js/common.js"></script>
+<script src="js/display.js"></script>
+</body>
+</html>
