@@ -35,11 +35,11 @@ Phones that press **before** the buzzers open get a 1-second "TOO SOON" lockout.
 
 ## Name recordings and audio
 
-1. Once a player has joined, click **Add voice** next to their name on the admin page and choose a WAV or MP3 (an iPhone voice memo works too).
-2. The admin page trims the silence, evens out the volume, and sends it to the display. The display plays it once as a check. **▶** replays it.
-3. During the game the display plays the buzzer sound, then the name of whoever buzzed in. On "wrong → next in line" it announces the next person.
+**Before players arrive:** on the admin page, under **Name recordings**, click **Add recordings** and select all the files at once (WAV, MP3 or iPhone .m4a). Name each file after the player, e.g. `Alice.mp3` or `Mary Jo.wav`. A player who joins with that name gets it automatically; capitals, spaces and punctuation are ignored. If someone joins under a different name ("Bob" for `Robert.mp3`), pick them from that recording's **Assign to** menu.
 
-Recordings are matched by **name**, so a player who rejoins under the same name keeps theirs. A display opened later still receives them.
+**After players join:** **Add voice** next to a player uploads a recording for that player directly.
+
+The admin page trims the silence, evens out the volume and stores each recording on the message server under the room code. Use the same room on show day: the admin page remembers its room, or set a fixed code under *Room & broker settings*. **▶** previews a recording on the admin device. During the game the display plays the buzzer sound, then the name of whoever buzzed in; on "wrong → next in line" it announces the next person. A display opened later still receives every recording.
 
 **Getting the sound into your recording:** sounds come out of whatever computer runs the display page. Run the display on the recording computer and route its audio into the recording, or connect that computer's headphone output to a **line** input on your audio interface.
 
@@ -58,7 +58,7 @@ Recordings are matched by **name**, so a player who rejoins under the same name 
 
 ## Updating the site
 
-Script and stylesheet links carry a version tag (`?v=20261102c`). Change it in all four HTML files whenever a `.js` or `.css` file changes; otherwise browsers can mix a new page with old cached code for up to 10 minutes (GitHub Pages' cache time).
+Script and stylesheet links carry a version tag (`?v=20261102d`). Change it in all four HTML files whenever a `.js` or `.css` file changes; otherwise browsers can mix a new page with old cached code for up to 10 minutes (GitHub Pages' cache time).
 
 ## Message layout (for reference)
 

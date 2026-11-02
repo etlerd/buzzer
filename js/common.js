@@ -244,11 +244,19 @@
         assemble(slug);
       },
       has(name) { return !!clips[voiceSlug(name)]; },
-      pending(name) { const s = voiceSlug(name); return !!manifests[s] && !clips[s]; },
+      hasSlug(slug) { return !!clips[slug]; },
+      pendingSlug(slug) { return !!manifests[slug] && !clips[slug]; },
       ready() { return Object.keys(clips); },
+      // [{slug, name, ready}] for every stored recording, by name
+      list() {
+        return Object.keys(manifests)
+          .map((slug) => ({ slug, name: manifests[slug].name || slug, ready: !!clips[slug] }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+      },
+      play(name, delayMs = 0) { return this.playSlug(voiceSlug(name), delayMs); },
       // Resolves true when playback starts, false if there is no clip; rejects if the browser blocks it.
-      play(name, delayMs = 0) {
-        const clip = clips[voiceSlug(name)];
+      playSlug(slug, delayMs = 0) {
+        const clip = clips[slug];
         if (!clip) return Promise.resolve(false);
         const start = () => playUrl(clip.url).then(() => true);
         if (!delayMs) return start();

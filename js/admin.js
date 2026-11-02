@@ -62,7 +62,7 @@
       kicked: game.kicked,
       question: game.question,
       result: game.result,
-      players: playerList().map((p) => ({ id: p.id, name: p.name, slot: p.slot, color: p.color, score: p.score, online: isOnline(p) })),
+      players: playerList().map((p) => ({ id: p.id, name: p.name, slot: p.slot, color: p.color, score: p.score, online: isOnline(p), voice: voiceOf(p) })),
       ts: Date.now(),
     };
   }
@@ -225,7 +225,7 @@
   // ---------- name recordings ----------
   // A clip is sent as retained binary chunks plus a manifest, so a display
   // opened later still receives it:
-  //   voice/<slug>               {id, n, bytes}
+  //   voice/<slug>               {id, n, bytes, name}
   //   voice/<slug>/<id>/<i>      WAV bytes, chunk i of n
   const CHUNK = 32 * 1024;
 
@@ -247,25 +247,74 @@
     for (let i = 0; i < n; i++) {
       client.publish(topic(room, `voice/${slug}/${id}/${i}`), wav.subarray(i * CHUNK, (i + 1) * CHUNK), { qos: 1, retain: true });
     }
-    const manifest = { id, n, bytes: wav.length };
+    const manifest = { id, n, bytes: wav.length, name: String(name).trim().slice(0, 40) };
     client.publish(topic(room, `voice/${slug}`), JSON.stringify(manifest), { qos: 1, retain: true });
     return wav.length;
   }
 
-  function previewName(name) {
+  // Recording used for a player: one assigned by hand, else the one matching their name.
+  function voiceOf(p) {
+    return p.voice && voices.manifests[p.voice] ? p.voice : BZ.voiceSlug(p.name);
+  }
+
+  function preview(slug, label, statusEl = 'voiceStatus') {
     sounds.unlock();
-    voices.play(name).then((ok) => {
-      if (!ok) $('voiceStatus').textContent = `No playable recording for ${name} yet.`;
+    voices.playSlug(slug).then((ok) => {
+      if (!ok) $(statusEl).textContent = `No playable recording for ${label} yet.`;
     }, (err) => {
-      $('voiceStatus').textContent = `The browser blocked playback (${err && err.name || 'error'}). Tap ▶ again; on iPhone check the volume.`;
+      $(statusEl).textContent = `The browser blocked playback (${err && err.name || 'error'}). Tap ▶ again; on iPhone check the volume.`;
     });
+  }
+
+  // Many files at once: each file's name (without extension) is the player name.
+  async function addRecordings(files) {
+    const list = [...files];
+    let done = 0;
+    const failed = [];
+    for (const f of list) {
+      const name = f.name.replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim();
+      $('libraryStatus').textContent = `Uploading ${done + 1} of ${list.length}: ${name}…`;
+      try { await uploadVoice(name, f); done++; } catch (err) { failed.push(`${f.name} (${err.message})`); }
+    }
+    $('libraryStatus').textContent = `Uploaded ${done} of ${list.length}.` + (failed.length ? ` Failed: ${failed.join('; ')}` : ' Each shows ▶ once the server confirms it.');
+  }
+
+  function deleteRecording(slug) {
+    const item = voices.list().find((v) => v.slug === slug);
+    if (!confirm(`Delete the recording "${item ? item.name : slug}"?`)) return;
+    clearVoice(slug);
+    for (const p of Object.values(game.players)) if (p.voice === slug) p.voice = null;
+    publish();
+  }
+
+  function renderLibrary() {
+    const players = playerList();
+    const items = voices.list();
+    $('library').innerHTML = items.map((v) => {
+      const users = players.filter((p) => voiceOf(p) === v.slug).map((p) => esc(p.name));
+      const options = players.map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+      return `<li>
+        <span class="lname">${esc(v.name)}</span>
+        <span class="match">${users.length ? '→ ' + users.join(', ') : 'not joined yet'}</span>
+        ${players.length ? `<select data-slug="${esc(v.slug)}" aria-label="Assign ${esc(v.name)} to a player"><option value="">Assign to…</option>${options}</select>` : ''}
+        <button class="small" data-lact="play" data-slug="${esc(v.slug)}"${v.ready ? '' : ' disabled'} aria-label="Play ${esc(v.name)}">${v.ready ? '▶' : '…'}</button>
+        <button class="small" data-lact="delete" data-slug="${esc(v.slug)}" aria-label="Delete ${esc(v.name)}">✕</button>
+      </li>`;
+    }).join('') || '<li class="muted">No recordings yet.</li>';
+  }
+
+  // re-send state when recordings change, so the display knows which one each player uses
+  let voicePublishTimer = null;
+  function publishSoon() {
+    clearTimeout(voicePublishTimer);
+    voicePublishTimer = setTimeout(publish, 300);
   }
 
   function onVoiceReady(slug, ready) {
     if (ready && awaitingVoice && awaitingVoice.slug === slug) {
       clearTimeout(awaitingVoice.timer);
       $('voiceStatus').textContent = `Saved voice for ${awaitingVoice.name}. Playing a preview here; the display plays it when they buzz in.`;
-      voices.play(awaitingVoice.name).catch(() => {
+      voices.playSlug(slug).catch(() => {
         $('voiceStatus').textContent += ' (Preview blocked by the browser: tap ▶ to hear it.)';
       });
       awaitingVoice = null;
@@ -312,6 +361,7 @@
       return `<li style="${out ? 'opacity:.45;text-decoration:line-through' : ''}"><span>${i + 1}. <span class="dot" style="background:${esc(p ? p.color : '#888')}"></span> ${esc(nameOf(q.id))}</span><span class="muted">${Math.round(q.rt)} ms</span></li>`;
     }).join('');
 
+    renderLibrary();
     const list = playerList();
     $('playerCount').textContent = `${list.filter(isOnline).length} online / ${list.length}`;
     $('players').innerHTML = list.map((p) => `
@@ -320,8 +370,8 @@
         <td class="${isOnline(p) ? '' : 'offline-name'}">${esc(p.name)}${game.excluded.includes(p.id) ? ' <span class="muted">(out)</span>' : ''}</td>
         <td class="score">${p.score}</td>
         <td><div class="acts">
-          <button class="small" data-act="voice" data-id="${esc(p.id)}" title="Upload a WAV or MP3 of this name">${voices.has(p.name) ? 'Voice ✓' : voices.pending(p.name) ? 'Voice…' : 'Add voice'}</button>
-          <button class="small" data-act="say" data-id="${esc(p.id)}" aria-label="Preview name"${voices.has(p.name) ? '' : ' disabled'}>▶</button>
+          <button class="small" data-act="voice" data-id="${esc(p.id)}" title="Upload a WAV or MP3 of this name">${voices.hasSlug(voiceOf(p)) ? 'Voice ✓' : voices.pendingSlug(voiceOf(p)) ? 'Voice…' : 'Add voice'}</button>
+          <button class="small" data-act="say" data-id="${esc(p.id)}" aria-label="Preview name"${voices.hasSlug(voiceOf(p)) ? '' : ' disabled'}>▶</button>
           <button class="small" data-act="minus" data-id="${esc(p.id)}" aria-label="Subtract points">−</button>
           <button class="small" data-act="plus" data-id="${esc(p.id)}" aria-label="Add points">+</button>
           <button class="small" data-act="kick" data-id="${esc(p.id)}" aria-label="Remove player">✕</button>
@@ -331,6 +381,24 @@
 
   // ---------- wiring ----------
   function initUi() {
+    $('btnAddRecordings').onclick = () => { $('libraryFiles').value = ''; $('libraryFiles').click(); };
+    $('libraryFiles').addEventListener('change', () => {
+      if ($('libraryFiles').files.length) addRecordings($('libraryFiles').files);
+    });
+    $('library').addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      const item = voices.list().find((v) => v.slug === b.dataset.slug);
+      if (b.dataset.lact === 'play') preview(b.dataset.slug, item ? item.name : b.dataset.slug, 'libraryStatus');
+      if (b.dataset.lact === 'delete') deleteRecording(b.dataset.slug);
+    });
+    $('library').addEventListener('change', (e) => {
+      const sel = e.target.closest('select');
+      if (!sel || !sel.value) return;
+      const p = game.players[sel.value];
+      if (p) { p.voice = sel.dataset.slug; publish(); }
+    });
+
     $('voiceFile').addEventListener('change', async () => {
       const file = $('voiceFile').files[0];
       const p = voiceFor;
@@ -347,6 +415,7 @@
             $('voiceStatus').textContent = `Upload for ${p.name} was not confirmed by the server. The network may be blocking it; try again or switch networks.`;
           }, 15000),
         };
+        p.voice = null;  // a recording uploaded for this player replaces any assigned one
         const bytes = await uploadVoice(p.name, file);
         $('voiceStatus').textContent = `Uploading voice for ${p.name} (${Math.round(bytes / 1024)} KB)…`;
         render();
@@ -398,7 +467,7 @@
       if (!p) return;
       const pts = Number(settings.points) || 1;
       if (b.dataset.act === 'voice') { pickVoice(p); return; }
-      if (b.dataset.act === 'say') { previewName(p.name); return; }
+      if (b.dataset.act === 'say') { preview(voiceOf(p), p.name); return; }
       if (b.dataset.act === 'plus') p.score += pts;
       if (b.dataset.act === 'minus') p.score -= pts;
       if (b.dataset.act === 'kick') {
@@ -470,7 +539,8 @@
       else if (t.endsWith('/buzz')) onBuzz(msg);
       else if (t.includes('/voice/')) {
         voices.handle(t, payload);
-        render();
+        if (t.split('/').length === 5) publishSoon();  // a manifest (not a chunk) changed
+        else render();
       }
     });
   }

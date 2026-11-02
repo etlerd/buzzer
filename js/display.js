@@ -43,7 +43,9 @@
   const voices = BZ.voiceStore(room, () => {
     document.body.dataset.voices = voices.ready().join(' ');  // for checking setup
   });
-  function playName(name, delayMs) { if (soundOn) voices.play(name, delayMs).catch((e) => console.warn('name playback blocked', e)); }
+  // p.voice is the recording the admin matched to this player (by name, or assigned by hand)
+  function playVoice(slug, delayMs) { if (soundOn && slug) voices.playSlug(slug, delayMs).catch((e) => console.warn('name playback blocked', e)); }
+  const voiceOf = (p) => (p ? p.voice || BZ.voiceSlug(p.name) : '');
 
   function render(s) {
     const stage = $('stage');
@@ -62,9 +64,9 @@
       if (s.phase === 'armed' && (prev.phase !== 'armed' || prev.armId !== s.armId)) play('armed');
       const newWinner = s.phase === 'buzzed' && s.winner && (prev.phase !== 'buzzed' || prev.winner !== s.winner);
       const newResult = s.result && (!prev.result || prev.result.n !== s.result.n);
-      const winnerName = newWinner && byId[s.winner] ? byId[s.winner].name : '';
-      if (newWinner && !newResult) { play('buzz'); playName(winnerName, 500); }
-      if (newWinner && newResult) playName(winnerName, 800);  // wrong -> next in line
+      const winnerVoice = newWinner ? voiceOf(byId[s.winner]) : '';
+      if (newWinner && !newResult) { play('buzz'); playVoice(winnerVoice, 500); }
+      if (newWinner && newResult) playVoice(winnerVoice, 800);  // wrong -> next in line
       if (newResult) {
         play(s.result.ok ? 'correct' : 'wrong');
         const r = $('result');
@@ -110,7 +112,7 @@
   });
   client.on('message', (t, payload) => {
     if (t.endsWith('/state')) render(BZ.parse(payload));
-    else if (t.endsWith('/say')) { const m = BZ.parse(payload); if (m) playName(m.slug, 0); }
+    else if (t.endsWith('/say')) { const m = BZ.parse(payload); if (m) playVoice(m.slug, 0); }
     else voices.handle(t, payload);
   });
 })();

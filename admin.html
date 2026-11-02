@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Buzzer Admin</title>
-  <link rel="stylesheet" href="css/style.css?v=20261102c">
+  <link rel="stylesheet" href="css/style.css?v=20261102d">
 </head>
 <body>
 <div class="wrap">
@@ -67,6 +67,15 @@
           </div>
         </div>
       </section>
+      <section class="panel stack">
+        <div class="row" style="justify-content:space-between">
+          <h3 style="margin:0">Name recordings</h3>
+          <button class="small primary" id="btnAddRecordings">Add recordings</button>
+        </div>
+        <p class="muted" style="font-size:.85rem;margin:0">Load these before players arrive. Name each file after the player, e.g. <b>Alice.mp3</b> or <b>Mary Jo.wav</b>: anyone who joins with that name gets it automatically (capitals, spaces and punctuation are ignored). If a name doesn't match, use <b>Assign to</b>.</p>
+        <p class="muted" id="libraryStatus" style="font-size:.85rem;margin:0"></p>
+        <ul class="library" id="library"></ul>
+      </section>
     </main>
 
     <aside class="stack">
@@ -114,10 +123,11 @@
   </div>
 </div>
 <input type="file" id="voiceFile" accept="audio/*,.mp3,.wav,.m4a" class="hidden">
-<script src="js/vendor/mqtt.min.js?v=20261102c"></script>
-<script src="js/vendor/qrcode.js?v=20261102c"></script>
-<script src="js/common.js?v=20261102c"></script>
-<script src="js/voice.js?v=20261102c"></script>
-<script src="js/admin.js?v=20261102c"></script>
+<input type="file" id="libraryFiles" accept="audio/*,.mp3,.wav,.m4a" multiple class="hidden">
+<script src="js/vendor/mqtt.min.js?v=20261102d"></script>
+<script src="js/vendor/qrcode.js?v=20261102d"></script>
+<script src="js/common.js?v=20261102d"></script>
+<script src="js/voice.js?v=20261102d"></script>
+<script src="js/admin.js?v=20261102d"></script>
 </body>
 </html>

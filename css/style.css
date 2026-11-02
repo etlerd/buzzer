@@ -105,6 +105,11 @@ label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: .
 .controls button { padding: .9rem; font-size: 1rem; }
 .kbd { font-size: .75rem; opacity: .7; display: block; font-weight: 400; }
 .queue { margin: 12px 0 0; padding: 0; list-style: none; }
+.library { margin: 0; padding: 0; list-style: none; }
+.library li { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: .4rem 0; border-bottom: 1px solid var(--line); }
+.library .lname { flex: 1; min-width: 8em; font-weight: 600; }
+.library .match { font-size: .85rem; color: var(--muted); }
+.library select { width: auto; padding: .25rem .4rem; font-size: .85rem; }
 .queue li { display: flex; justify-content: space-between; padding: .35rem .5rem; border-bottom: 1px solid var(--line); }
 .queue li:first-child { font-weight: 700; }
 .players { width: 100%; border-collapse: collapse; }
