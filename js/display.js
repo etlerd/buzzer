@@ -18,7 +18,17 @@
 
   $('room').textContent = room;
   BZ.renderQr($('qr'), BZ.pageUrl('play.html', room));
-  if (hideQr) $('join').classList.add('hidden');
+  // Join code: ✕ hides it (remembered on this computer per room); "Show join code" brings it back.
+  // ?qr=0 in the address starts with it hidden.
+  const qrKey = 'displayHideQr.' + room;
+  function setQrHidden(hidden) {
+    $('join').classList.toggle('hidden', hidden);
+    $('btnShowQr').classList.toggle('hidden', !hidden);
+    BZ.store.set(qrKey, hidden);
+  }
+  setQrHidden(hideQr || BZ.store.get(qrKey, false));
+  $('btnHideQr').onclick = () => setQrHidden(true);
+  $('btnShowQr').onclick = () => setQrHidden(false);
 
   $('btnSound').onclick = () => {
     soundOn = true;

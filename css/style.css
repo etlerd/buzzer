@@ -173,7 +173,9 @@ details summary { cursor: pointer; color: var(--muted); }
 .display .board li { display: flex; align-items: center; gap: .6em; padding: .35em 0; border-bottom: 1px solid var(--line); }
 .display .board .n { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .display .board .dot { width: .8em; height: .8em; }
-.display .join { text-align: center; }
+.display .join { text-align: center; position: relative; }
+.display .join-close { position: absolute; top: 0; right: 0; opacity: .6; }
+.display .join-close:hover { opacity: 1; }
 .display .join .qr { max-width: 18vw; min-width: 140px; }
 .display .room { font-size: clamp(1.4rem, 3vw, 2.6rem); font-weight: 800; color: var(--accent); }
 .display .result { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
