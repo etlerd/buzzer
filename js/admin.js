@@ -253,14 +253,21 @@
   }
 
   function previewName(name) {
-    if (!voices.play(name)) $('voiceStatus').textContent = `No playable recording for ${name} yet.`;
+    sounds.unlock();
+    voices.play(name).then((ok) => {
+      if (!ok) $('voiceStatus').textContent = `No playable recording for ${name} yet.`;
+    }, (err) => {
+      $('voiceStatus').textContent = `The browser blocked playback (${err && err.name || 'error'}). Tap ▶ again; on iPhone check the volume.`;
+    });
   }
 
   function onVoiceReady(slug, ready) {
     if (ready && awaitingVoice && awaitingVoice.slug === slug) {
       clearTimeout(awaitingVoice.timer);
       $('voiceStatus').textContent = `Saved voice for ${awaitingVoice.name}. Playing a preview here; the display plays it when they buzz in.`;
-      voices.play(awaitingVoice.name);
+      voices.play(awaitingVoice.name).catch(() => {
+        $('voiceStatus').textContent += ' (Preview blocked by the browser: tap ▶ to hear it.)';
+      });
       awaitingVoice = null;
     }
     render();
@@ -435,7 +442,7 @@
       location.href = u.toString();
     };
 
-    document.addEventListener('pointerdown', sounds.unlock, { once: true });
+    document.addEventListener('pointerdown', sounds.unlock);
     document.addEventListener('keydown', (e) => {
       if (e.target.matches('input, textarea, select') || e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();

@@ -43,7 +43,7 @@
   const voices = BZ.voiceStore(room, () => {
     document.body.dataset.voices = voices.ready().join(' ');  // for checking setup
   });
-  function playName(name, delayMs) { if (soundOn) voices.play(name, delayMs); }
+  function playName(name, delayMs) { if (soundOn) voices.play(name, delayMs).catch((e) => console.warn('name playback blocked', e)); }
 
   function render(s) {
     const stage = $('stage');

@@ -85,12 +85,52 @@
   let audioCtx = null;
   function audio() {
     if (!audioCtx) {
+      // iOS: count as media playback, so the ring/silent switch does not mute the page (iOS 17+)
+      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* unsupported */ }
       const Ctx = window.AudioContext || window.webkitAudioContext;
       if (!Ctx) return null;
       audioCtx = new Ctx();
     }
-    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (audioCtx.state === 'suspended' || audioCtx.state === 'interrupted') audioCtx.resume();
     return audioCtx;
+  }
+
+  // One shared <audio> element plays recordings. Browsers (iOS especially) only
+  // allow sound from an element first started during a tap or click, so it is
+  // "unlocked" with a moment of silence on the first one, then reused.
+  let mediaEl = null;
+  let mediaUnlocked = false;
+  function silentWavUrl() {
+    const n = 800;
+    const v = new DataView(new ArrayBuffer(44 + n * 2));
+    const str = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+    str(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); str(8, 'WAVE'); str(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, 16000, true);
+    v.setUint32(28, 32000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); str(36, 'data'); v.setUint32(40, n * 2, true);
+    return URL.createObjectURL(new Blob([v.buffer], { type: 'audio/wav' }));
+  }
+  function media() {
+    if (!mediaEl) {
+      mediaEl = new Audio();
+      mediaEl.preload = 'auto';
+      mediaEl.setAttribute('playsinline', '');
+    }
+    return mediaEl;
+  }
+  function unlockMedia() {
+    if (mediaUnlocked) return;
+    const el = media();
+    el.src = silentWavUrl();
+    const p = el.play();
+    if (p && p.then) p.then(() => { mediaUnlocked = true; }, () => { /* try again on next tap */ });
+    else mediaUnlocked = true;
+  }
+  function playUrl(url) {
+    const el = media();
+    el.pause();
+    el.src = url;
+    el.currentTime = 0;
+    return el.play();
   }
   function tone(freq, ms, type = 'square', gain = 0.15, delay = 0) {
     const ctx = audio();
@@ -107,7 +147,7 @@
     osc.stop(t0 + ms / 1000 + 0.02);
   }
   const sounds = {
-    unlock() { audio(); },
+    unlock() { audio(); unlockMedia(); },
     buzz() { tone(220, 450, 'sawtooth', 0.2); tone(110, 450, 'square', 0.12); },
     armed() { tone(880, 90, 'sine', 0.15); tone(1320, 120, 'sine', 0.15, 100); },
     correct() { tone(660, 120, 'triangle', 0.2); tone(880, 120, 'triangle', 0.2, 120); tone(1320, 260, 'triangle', 0.2, 240); },
@@ -167,15 +207,19 @@
       let off = 0;
       for (const c of list) { wav.set(c, off); off += c.length; }
       delete chunks[key];
+      // make the playable copy first: decodeAudioData takes ownership of (empties) the bytes
+      const url = URL.createObjectURL(new Blob([wav], { type: 'audio/wav' }));
       try {
         const ctx = audio();
         const buffer = await new Promise((res, rej) => {
           const p = ctx.decodeAudioData(wav.buffer, res, rej);
           if (p && p.then) p.then(res, rej);
         });
-        clips[slug] = { id: m.id, buffer };
+        if (clips[slug]) URL.revokeObjectURL(clips[slug].url);
+        clips[slug] = { id: m.id, buffer, url };
         onChange && onChange(slug, true);
       } catch (e) {
+        URL.revokeObjectURL(url);
         console.warn('could not decode voice for', slug);
       }
     }
@@ -191,7 +235,7 @@
           if (m && m.id) manifests[slug] = m;
           else {
             delete manifests[slug];
-            if (clips[slug]) { delete clips[slug]; onChange && onChange(slug, false); }
+            if (clips[slug]) { URL.revokeObjectURL(clips[slug].url); delete clips[slug]; onChange && onChange(slug, false); }
           }
         } else if (parts.length === 3 && payload.length) {
           const key = slug + '/' + parts[1];
@@ -202,15 +246,13 @@
       has(name) { return !!clips[voiceSlug(name)]; },
       pending(name) { const s = voiceSlug(name); return !!manifests[s] && !clips[s]; },
       ready() { return Object.keys(clips); },
+      // Resolves true when playback starts, false if there is no clip; rejects if the browser blocks it.
       play(name, delayMs = 0) {
         const clip = clips[voiceSlug(name)];
-        const ctx = audio();
-        if (!clip || !ctx) return false;
-        const src = ctx.createBufferSource();
-        src.buffer = clip.buffer;
-        src.connect(ctx.destination);
-        src.start(ctx.currentTime + delayMs / 1000);
-        return true;
+        if (!clip) return Promise.resolve(false);
+        const start = () => playUrl(clip.url).then(() => true);
+        if (!delayMs) return start();
+        return new Promise((res, rej) => setTimeout(() => start().then(res, rej), delayMs));
       },
     };
   }
