@@ -40,56 +40,10 @@
   function play(name) { if (soundOn) sounds[name](); }
 
   // ---------- recorded names ----------
-  const manifests = {};  // slug -> {id, n, bytes}
-  const chunks = {};     // "slug/id" -> [Uint8Array]
-  const clips = {};      // slug -> {id, buffer}
-
-  function onVoice(t, payload) {
-    const parts = t.slice(topic(room, 'voice/').length).split('/');
-    const slug = parts[0];
-    if (parts.length === 1) {
-      const m = BZ.parse(payload);
-      if (m && m.id) manifests[slug] = m;
-      else { delete manifests[slug]; delete clips[slug]; }
-    } else if (parts.length === 3 && payload.length) {
-      const key = slug + '/' + parts[1];
-      (chunks[key] = chunks[key] || [])[Number(parts[2])] = new Uint8Array(payload);
-    }
-    assemble(slug);
-  }
-
-  async function assemble(slug) {
-    const m = manifests[slug];
-    if (!m || (clips[slug] && clips[slug].id === m.id)) return;
-    const key = slug + '/' + m.id;
-    const list = chunks[key] || [];
-    for (let i = 0; i < m.n; i++) if (!list[i]) return;  // still arriving
-    const wav = new Uint8Array(m.bytes);
-    let off = 0;
-    for (const c of list) { wav.set(c, off); off += c.length; }
-    delete chunks[key];
-    try {
-      const ctx = BZ.audioContext();
-      const buffer = await new Promise((res, rej) => {
-        const p = ctx.decodeAudioData(wav.buffer, res, rej);
-        if (p && p.then) p.then(res, rej);
-      });
-      clips[slug] = { id: m.id, buffer };
-      document.body.dataset.voices = Object.keys(clips).join(' ');  // for checking setup
-    } catch (e) {
-      console.warn('could not decode voice for', slug);
-    }
-  }
-
-  function playName(name, delayMs) {
-    const clip = clips[BZ.voiceSlug(name)];
-    if (!soundOn || !clip) return;
-    const ctx = BZ.audioContext();
-    const src = ctx.createBufferSource();
-    src.buffer = clip.buffer;
-    src.connect(ctx.destination);
-    src.start(ctx.currentTime + delayMs / 1000);
-  }
+  const voices = BZ.voiceStore(room, () => {
+    document.body.dataset.voices = voices.ready().join(' ');  // for checking setup
+  });
+  function playName(name, delayMs) { if (soundOn) voices.play(name, delayMs); }
 
   function render(s) {
     const stage = $('stage');
@@ -157,6 +111,6 @@
   client.on('message', (t, payload) => {
     if (t.endsWith('/state')) render(BZ.parse(payload));
     else if (t.endsWith('/say')) { const m = BZ.parse(payload); if (m) playName(m.slug, 0); }
-    else onVoice(t, payload);
+    else voices.handle(t, payload);
   });
 })();

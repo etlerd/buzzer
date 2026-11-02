@@ -38,7 +38,9 @@
   let client = null;
   let collectTimer = null;
   const onlineCache = {};
-  const voices = {};  // name slug -> retained manifest {id, n, bytes}
+  // Name recordings, read back from the broker: proves the upload arrived and lets ▶ preview here.
+  const voices = BZ.voiceStore(room, (slug, ready) => onVoiceReady(slug, ready));
+  let awaitingVoice = null;  // {slug, name, timer} while an upload is unconfirmed
   const $ = (id) => document.getElementById(id);
 
   function isOnline(p) { return Date.now() - (p.lastSeen || 0) < OFFLINE_AFTER_MS; }
@@ -228,11 +230,10 @@
   const CHUNK = 32 * 1024;
 
   function clearVoice(slug) {
-    const m = voices[slug];
+    const m = voices.manifests[slug];
     if (!m || !client || !client.connected) return;
     for (let i = 0; i < m.n; i++) client.publish(topic(room, `voice/${slug}/${m.id}/${i}`), '', { qos: 1, retain: true });
     client.publish(topic(room, `voice/${slug}`), '', { qos: 1, retain: true });
-    delete voices[slug];
   }
 
   async function uploadVoice(name, file) {
@@ -248,12 +249,21 @@
     }
     const manifest = { id, n, bytes: wav.length };
     client.publish(topic(room, `voice/${slug}`), JSON.stringify(manifest), { qos: 1, retain: true });
-    voices[slug] = manifest;
     return wav.length;
   }
 
-  function sayName(name) {
-    if (client && client.connected) client.publish(topic(room, 'say'), JSON.stringify({ slug: BZ.voiceSlug(name) }), { qos: 0 });
+  function previewName(name) {
+    if (!voices.play(name)) $('voiceStatus').textContent = `No playable recording for ${name} yet.`;
+  }
+
+  function onVoiceReady(slug, ready) {
+    if (ready && awaitingVoice && awaitingVoice.slug === slug) {
+      clearTimeout(awaitingVoice.timer);
+      $('voiceStatus').textContent = `Saved voice for ${awaitingVoice.name}. Playing a preview here; the display plays it when they buzz in.`;
+      voices.play(awaitingVoice.name);
+      awaitingVoice = null;
+    }
+    render();
   }
 
   let voiceFor = null;
@@ -303,8 +313,8 @@
         <td class="${isOnline(p) ? '' : 'offline-name'}">${esc(p.name)}${game.excluded.includes(p.id) ? ' <span class="muted">(out)</span>' : ''}</td>
         <td class="score">${p.score}</td>
         <td><div class="acts">
-          <button class="small" data-act="voice" data-id="${esc(p.id)}" title="Upload a WAV or MP3 of this name">${voices[BZ.voiceSlug(p.name)] ? 'Voice ✓' : 'Add voice'}</button>
-          <button class="small" data-act="say" data-id="${esc(p.id)}" aria-label="Play name on display"${voices[BZ.voiceSlug(p.name)] ? '' : ' disabled'}>▶</button>
+          <button class="small" data-act="voice" data-id="${esc(p.id)}" title="Upload a WAV or MP3 of this name">${voices.has(p.name) ? 'Voice ✓' : voices.pending(p.name) ? 'Voice…' : 'Add voice'}</button>
+          <button class="small" data-act="say" data-id="${esc(p.id)}" aria-label="Preview name"${voices.has(p.name) ? '' : ' disabled'}>▶</button>
           <button class="small" data-act="minus" data-id="${esc(p.id)}" aria-label="Subtract points">−</button>
           <button class="small" data-act="plus" data-id="${esc(p.id)}" aria-label="Add points">+</button>
           <button class="small" data-act="kick" data-id="${esc(p.id)}" aria-label="Remove player">✕</button>
@@ -320,11 +330,21 @@
       if (!file || !p) return;
       $('voiceStatus').textContent = `Converting ${file.name}…`;
       try {
+        const slug = BZ.voiceSlug(p.name);
+        if (awaitingVoice) clearTimeout(awaitingVoice.timer);
+        awaitingVoice = {
+          slug,
+          name: p.name,
+          timer: setTimeout(() => {
+            awaitingVoice = null;
+            $('voiceStatus').textContent = `Upload for ${p.name} was not confirmed by the server. The network may be blocking it; try again or switch networks.`;
+          }, 15000),
+        };
         const bytes = await uploadVoice(p.name, file);
-        $('voiceStatus').textContent = `Saved voice for ${p.name} (${Math.round(bytes / 1024)} KB). Playing it on the display.`;
+        $('voiceStatus').textContent = `Uploading voice for ${p.name} (${Math.round(bytes / 1024)} KB)…`;
         render();
-        setTimeout(() => sayName(p.name), 1500);
       } catch (err) {
+        if (awaitingVoice) { clearTimeout(awaitingVoice.timer); awaitingVoice = null; }
         $('voiceStatus').textContent = err.message;
       }
     });
@@ -371,7 +391,7 @@
       if (!p) return;
       const pts = Number(settings.points) || 1;
       if (b.dataset.act === 'voice') { pickVoice(p); return; }
-      if (b.dataset.act === 'say') { sayName(p.name); return; }
+      if (b.dataset.act === 'say') { previewName(p.name); return; }
       if (b.dataset.act === 'plus') p.score += pts;
       if (b.dataset.act === 'minus') p.score -= pts;
       if (b.dataset.act === 'kick') {
@@ -400,7 +420,7 @@
       // remove retained messages so the old room does not linger on the broker
       if (client && client.connected) {
         client.publish(topic(room, 'state'), '', { qos: 1, retain: true });
-        for (const slug of Object.keys(voices)) clearVoice(slug);
+        for (const slug of Object.keys(voices.manifests)) clearVoice(slug);
       }
       store.set('hostRoom', code);
       setTimeout(() => { location.search = '?room=' + code; }, 300);
@@ -433,7 +453,7 @@
       role: 'host',
       onStatus: (s) => BZ.setStatusBadge($('status'), s),
       onConnect: () => {
-        client.subscribe([topic(room, 'hello'), topic(room, 'buzz'), topic(room, 'voice/+')], { qos: 1 });
+        client.subscribe([topic(room, 'hello'), topic(room, 'buzz'), topic(room, 'voice/#')], { qos: 1 });
         publish();
       },
     });
@@ -442,8 +462,7 @@
       if (t.endsWith('/hello')) onHello(msg);
       else if (t.endsWith('/buzz')) onBuzz(msg);
       else if (t.includes('/voice/')) {
-        const slug = t.split('/').pop();
-        if (msg && msg.id) voices[slug] = msg; else delete voices[slug];
+        voices.handle(t, payload);
         render();
       }
     });

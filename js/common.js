@@ -147,6 +147,74 @@
     return s;
   }
 
+  // Collects name recordings arriving over MQTT and decodes them for playback.
+  //   voice/<slug>            retained manifest {id, n, bytes} (empty = deleted)
+  //   voice/<slug>/<id>/<i>   retained WAV bytes, chunk i of n
+  // onChange(slug, ready) fires when a clip becomes playable or is removed.
+  function voiceStore(room, onChange) {
+    const prefix = topic(room, 'voice/');
+    const manifests = {};
+    const chunks = {};
+    const clips = {};
+
+    async function assemble(slug) {
+      const m = manifests[slug];
+      if (!m || (clips[slug] && clips[slug].id === m.id)) return;
+      const key = slug + '/' + m.id;
+      const list = chunks[key] || [];
+      for (let i = 0; i < m.n; i++) if (!list[i]) return;  // still arriving
+      const wav = new Uint8Array(m.bytes);
+      let off = 0;
+      for (const c of list) { wav.set(c, off); off += c.length; }
+      delete chunks[key];
+      try {
+        const ctx = audio();
+        const buffer = await new Promise((res, rej) => {
+          const p = ctx.decodeAudioData(wav.buffer, res, rej);
+          if (p && p.then) p.then(res, rej);
+        });
+        clips[slug] = { id: m.id, buffer };
+        onChange && onChange(slug, true);
+      } catch (e) {
+        console.warn('could not decode voice for', slug);
+      }
+    }
+
+    return {
+      manifests,
+      handle(t, payload) {
+        if (!t.startsWith(prefix)) return;
+        const parts = t.slice(prefix.length).split('/');
+        const slug = parts[0];
+        if (parts.length === 1) {
+          const m = parse(payload);
+          if (m && m.id) manifests[slug] = m;
+          else {
+            delete manifests[slug];
+            if (clips[slug]) { delete clips[slug]; onChange && onChange(slug, false); }
+          }
+        } else if (parts.length === 3 && payload.length) {
+          const key = slug + '/' + parts[1];
+          (chunks[key] = chunks[key] || [])[Number(parts[2])] = new Uint8Array(payload);
+        }
+        assemble(slug);
+      },
+      has(name) { return !!clips[voiceSlug(name)]; },
+      pending(name) { const s = voiceSlug(name); return !!manifests[s] && !clips[s]; },
+      ready() { return Object.keys(clips); },
+      play(name, delayMs = 0) {
+        const clip = clips[voiceSlug(name)];
+        const ctx = audio();
+        if (!clip || !ctx) return false;
+        const src = ctx.createBufferSource();
+        src.buffer = clip.buffer;
+        src.connect(ctx.destination);
+        src.start(ctx.currentTime + delayMs / 1000);
+        return true;
+      },
+    };
+  }
+
   function setStatusBadge(el, s) {
     if (!el) return;
     el.dataset.status = s;
@@ -155,6 +223,6 @@
 
   window.BZ = {
     DEFAULT_BROKER, PREFIX, params, store, brokerUrl, cleanRoom, newRoomCode, newId,
-    topic, connect, parse, sounds, esc, pageUrl, renderQr, setStatusBadge, voiceSlug, audioContext: audio,
+    topic, connect, parse, sounds, esc, pageUrl, renderQr, setStatusBadge, voiceSlug, audioContext: audio, voiceStore,
   };
 })();
