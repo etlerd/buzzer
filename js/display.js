@@ -43,7 +43,7 @@
   const voices = BZ.voiceStore(room, () => {
     document.body.dataset.voices = voices.ready().join(' ');  // for checking setup
   });
-  // p.voice is the recording the admin matched to this player (by name, or assigned by hand)
+  // p.voice is the buzzer sound the admin matched to this player (by name, or assigned by hand)
   function playVoice(slug, delayMs) { if (soundOn && slug) voices.playSlug(slug, delayMs).catch((e) => console.warn('name playback blocked', e)); }
   const voiceOf = (p) => (p ? p.voice || BZ.voiceSlug(p.name) : '');
 
@@ -65,7 +65,8 @@
       const newWinner = s.phase === 'buzzed' && s.winner && (prev.phase !== 'buzzed' || prev.winner !== s.winner);
       const newResult = s.result && (!prev.result || prev.result.n !== s.result.n);
       const winnerVoice = newWinner ? voiceOf(byId[s.winner]) : '';
-      if (newWinner && !newResult) { play('buzz'); playVoice(winnerVoice, 500); }
+      // the player's own buzzer sound replaces the standard buzz; no sound loaded -> standard buzz
+      if (newWinner && !newResult) { if (voices.hasSlug(winnerVoice)) playVoice(winnerVoice, 0); else play('buzz'); }
       if (newWinner && newResult) playVoice(winnerVoice, 800);  // wrong -> next in line
       if (newResult) {
         play(s.result.ok ? 'correct' : 'wrong');

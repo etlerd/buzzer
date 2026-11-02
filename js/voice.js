@@ -33,7 +33,7 @@ window.Voice = (function () {
   function trimAndNormalize(data) {
     let peak = 0;
     for (const v of data) peak = Math.max(peak, Math.abs(v));
-    if (peak < 0.003) throw new Error('The recording is silent.');
+    if (peak < 0.003) throw new Error('That file is silent.');
     const threshold = peak * 0.06;
     let start = 0;
     let end = data.length - 1;

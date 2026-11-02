@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Buzzer Admin</title>
-  <link rel="stylesheet" href="css/style.css?v=20261102d">
+  <link rel="stylesheet" href="css/style.css?v=20261102e">
 </head>
 <body>
 <div class="wrap">
@@ -69,10 +69,10 @@
       </section>
       <section class="panel stack">
         <div class="row" style="justify-content:space-between">
-          <h3 style="margin:0">Name recordings</h3>
-          <button class="small primary" id="btnAddRecordings">Add recordings</button>
+          <h3 style="margin:0">Buzzer sounds</h3>
+          <button class="small primary" id="btnAddRecordings">Add sounds</button>
         </div>
-        <p class="muted" style="font-size:.85rem;margin:0">Load these before players arrive. Name each file after the player, e.g. <b>Alice.mp3</b> or <b>Mary Jo.wav</b>: anyone who joins with that name gets it automatically (capitals, spaces and punctuation are ignored). If a name doesn't match, use <b>Assign to</b>.</p>
+        <p class="muted" style="font-size:.85rem;margin:0">Each player's own sound, played instead of the standard buzz when they buzz in. Load them before players arrive: name each WAV or MP3 after the player, e.g. <b>Alice.mp3</b> or <b>Mary Jo.wav</b>, and anyone who joins with that name gets it automatically (capitals, spaces and punctuation are ignored). If a name doesn't match, use <b>Assign to</b>.</p>
         <p class="muted" id="libraryStatus" style="font-size:.85rem;margin:0"></p>
         <ul class="library" id="library"></ul>
       </section>
@@ -95,7 +95,7 @@
           <button class="small" id="btnResetScores">Reset scores</button>
           <button class="small" id="btnRemoveOffline">Remove offline</button>
         </div>
-        <p class="muted" id="voiceStatus" style="font-size:.85rem;margin:12px 0 0">Add voice: upload a WAV or MP3 of each player's name. The display page plays it when they buzz in.</p>
+        <p class="muted" id="voiceStatus" style="font-size:.85rem;margin:12px 0 0">Add sound: upload a WAV or MP3 for that player. The display page plays it instead of the standard buzz.</p>
       </section>
 
       <section class="panel">
@@ -124,10 +124,10 @@
 </div>
 <input type="file" id="voiceFile" accept="audio/*,.mp3,.wav,.m4a" class="hidden">
 <input type="file" id="libraryFiles" accept="audio/*,.mp3,.wav,.m4a" multiple class="hidden">
-<script src="js/vendor/mqtt.min.js?v=20261102d"></script>
-<script src="js/vendor/qrcode.js?v=20261102d"></script>
-<script src="js/common.js?v=20261102d"></script>
-<script src="js/voice.js?v=20261102d"></script>
-<script src="js/admin.js?v=20261102d"></script>
+<script src="js/vendor/mqtt.min.js?v=20261102e"></script>
+<script src="js/vendor/qrcode.js?v=20261102e"></script>
+<script src="js/common.js?v=20261102e"></script>
+<script src="js/voice.js?v=20261102e"></script>
+<script src="js/admin.js?v=20261102e"></script>
 </body>
 </html>

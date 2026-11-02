@@ -33,13 +33,15 @@ Phones are the buzzers. Runs on GitHub Pages; no hardware, server or accounts ne
 
 Phones that press **before** the buzzers open get a 1-second "TOO SOON" lockout.
 
-## Name recordings and audio
+## Buzzer sounds and audio
 
-**Before players arrive:** on the admin page, under **Name recordings**, click **Add recordings** and select all the files at once (WAV, MP3 or iPhone .m4a). Name each file after the player, e.g. `Alice.mp3` or `Mary Jo.wav`. A player who joins with that name gets it automatically; capitals, spaces and punctuation are ignored. If someone joins under a different name ("Bob" for `Robert.mp3`), pick them from that recording's **Assign to** menu.
+Each player can have their own buzzer sound (their name, a catchphrase, a sound effect). It plays **instead of** the standard buzz when they buzz in; players without one get the standard buzz.
 
-**After players join:** **Add voice** next to a player uploads a recording for that player directly.
+**Before players arrive:** on the admin page, under **Buzzer sounds**, click **Add sounds** and select all the files at once (WAV, MP3 or iPhone .m4a). Name each file after the player, e.g. `Alice.mp3` or `Mary Jo.wav`. A player who joins with that name gets it automatically; capitals, spaces and punctuation are ignored. If someone joins under a different name ("Bob" for `Robert.mp3`), pick them from that sound's **Assign to** menu.
 
-The admin page trims the silence, evens out the volume and stores each recording on the message server under the room code. Use the same room on show day: the admin page remembers its room, or set a fixed code under *Room & broker settings*. **▶** previews a recording on the admin device. During the game the display plays the buzzer sound, then the name of whoever buzzed in; on "wrong → next in line" it announces the next person. A display opened later still receives every recording.
+**After players join:** **Add sound** next to a player uploads a sound for that player directly.
+
+The admin page trims silence from both ends, evens out the volume, keeps at most 4 seconds, and stores each sound on the message server under the room code. Use the same room on show day: the admin page remembers its room, or set a fixed code under *Room & broker settings*. **▶** previews a sound on the admin device. On "wrong → next in line" the display plays the next person's sound. A display opened later still receives every sound.
 
 **Getting the sound into your recording:** sounds come out of whatever computer runs the display page. Run the display on the recording computer and route its audio into the recording, or connect that computer's headphone output to a **line** input on your audio interface.
 
@@ -58,7 +60,7 @@ The admin page trims the silence, evens out the volume and stores each recording
 
 ## Updating the site
 
-Script and stylesheet links carry a version tag (`?v=20261102d`). Change it in all four HTML files whenever a `.js` or `.css` file changes; otherwise browsers can mix a new page with old cached code for up to 10 minutes (GitHub Pages' cache time).
+Script and stylesheet links carry a version tag (`?v=20261102e`). Change it in all four HTML files whenever a `.js` or `.css` file changes; otherwise browsers can mix a new page with old cached code for up to 10 minutes (GitHub Pages' cache time).
 
 ## Message layout (for reference)
 
