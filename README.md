@@ -56,6 +56,10 @@ Recordings are matched by **name**, so a player who rejoins under the same name 
 - **16 players** per room.
 - **iPhones** don't vibrate on buzz (Safari has no vibration support).
 
+## Updating the site
+
+Script and stylesheet links carry a version tag (`?v=20261102a`). Change it in all four HTML files whenever a `.js` or `.css` file changes; otherwise browsers can mix a new page with old cached code for up to 10 minutes (GitHub Pages' cache time).
+
 ## Message layout (for reference)
 
 Topics under `gsbuzz/v1/<ROOM>/`:
