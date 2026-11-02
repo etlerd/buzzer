@@ -17,6 +17,8 @@
   }
 
   $('room').textContent = room;
+  const joinAddr = new URL('play.html', location.href);
+  $('joinAddr').textContent = joinAddr.host + joinAddr.pathname;
   BZ.renderQr($('qr'), BZ.pageUrl('play.html', room));
   // Join code: ✕ hides it (remembered on this computer per room); "Show join code" brings it back.
   // ?qr=0 in the address starts with it hidden.
@@ -78,7 +80,9 @@
     prev = s;
 
     stage.className = 'stage' + (s.phase === 'armed' ? ' armed' : '');
+    stage.style.removeProperty('--tint');
     const w = byId[s.winner];
+    if (s.phase === 'buzzed' && w) { stage.classList.add('buzzed'); stage.style.setProperty('--tint', w.color); }
     if (s.phase === 'armed') {
       $('phase').textContent = 'Buzzers open';
       $('winner').textContent = '';
@@ -95,11 +99,18 @@
       $('winner').textContent = '';
     }
     const list = [...(s.players || [])].sort((a, b) => a.slot - b.slot);
-    $('board').innerHTML = list.map((p) => `
-      <li style="${p.online ? '' : 'opacity:.4'}">
+    const excluded = s.excluded || [];
+    const line = (s.phase === 'buzzed' ? s.queue || [] : []).filter((q) => !excluded.includes(q.id)).map((q) => q.id);
+    $('board').innerHTML = list.map((p) => {
+      const cls = [p.online ? '' : 'offline', excluded.includes(p.id) ? 'out' : '', s.phase === 'buzzed' && s.winner === p.id ? 'is-winner' : ''].join(' ');
+      const pos = line.indexOf(p.id);
+      const tag = excluded.includes(p.id) ? 'out' : pos > 0 ? `#${pos + 1}` : '';
+      return `<li class="${cls}" style="--c:${esc(p.color)}">
         <span class="dot" style="background:${esc(p.color)}"></span>
         <span class="n">${esc(p.name)}</span>
-      </li>`).join('');
+        <span class="tag">${tag}</span>
+      </li>`;
+    }).join('');
   }
 
   const client = BZ.connect({

@@ -41,6 +41,9 @@
   const voices = BZ.voiceStore(room, (slug, ready) => onVoiceReady(slug, ready));
   let awaitingVoice = null;  // {slug, name, timer} while an upload is unconfirmed
   const $ = (id) => document.getElementById(id);
+  // Identifies this admin page, so a second admin page on the same room can be detected.
+  let adminId = store.get('adminId', '');
+  if (!adminId) { adminId = BZ.newId(); store.set('adminId', adminId); }
 
   function isOnline(p) { return Date.now() - (p.lastSeen || 0) < OFFLINE_AFTER_MS; }
   function playerList() { return Object.values(game.players).sort((a, b) => a.slot - b.slot); }
@@ -52,6 +55,7 @@
   function wireState() {
     return {
       v: 1,
+      admin: adminId,
       room,
       phase: game.phase,
       armId: game.armId,
@@ -327,33 +331,50 @@
   function render() {
     $('roomCode').textContent = room;
     const big = $('bigState');
-    big.className = 'big-state' + (game.phase === 'armed' ? ' armed' : '');
     const w = game.winner && game.players[game.winner];
+    big.className = 'big-state';
+    big.style.removeProperty('--tint');
+    let label = 'Locked';
+    let value = 'Ready';
+    let sub = '';
+    const canBuzz = playerList().filter((p) => isOnline(p) && !game.excluded.includes(p.id)).length;
     if (game.phase === 'armed') {
-      $('phaseLabel').textContent = 'Buzzers open';
-      $('phaseValue').textContent = game.queue.length ? 'Deciding…' : 'Waiting for buzz';
+      big.classList.add('armed');
+      label = 'Buzzers open';
+      value = game.queue.length ? 'Deciding…' : 'Waiting for a buzz';
+      sub = `${canBuzz} player${canBuzz === 1 ? '' : 's'} can buzz`;
     } else if (game.phase === 'buzzed' && w) {
-      $('phaseLabel').textContent = 'Buzzed in';
-      $('phaseValue').innerHTML = `<span style="color:${esc(w.color)}">${esc(w.name)}</span>`;
+      big.classList.add('buzzed');
+      big.style.setProperty('--tint', w.color);
+      label = 'Buzzed in';
+      value = esc(w.name);
     } else if (game.result) {
-      $('phaseLabel').textContent = game.result.ok ? 'Correct' : 'Wrong';
-      $('phaseValue').innerHTML = `<span style="color:${game.result.ok ? 'var(--ok)' : 'var(--bad)'}">${esc(nameOf(game.result.id))}</span>`;
-    } else {
-      $('phaseLabel').textContent = 'Locked';
-      $('phaseValue').textContent = 'Ready';
+      big.classList.add(game.result.ok ? 'right' : 'wrong');
+      label = game.result.ok ? 'Correct' : 'Wrong';
+      value = esc(nameOf(game.result.id));
     }
+    if (game.phase !== 'armed' && game.excluded.length) {
+      sub = `Locked out this question: ${game.excluded.map((id) => esc(nameOf(id))).join(', ')}`;
+    }
+    $('phaseLabel').textContent = label;
+    $('phaseValue').innerHTML = value;
+    $('phaseSub').innerHTML = sub;
 
     const buzzed = game.phase === 'buzzed' && !!game.winner;
+    const next = buzzed && game.queue.find((q) => q.id !== game.winner && !game.excluded.includes(q.id));
     $('btnArm').disabled = game.phase === 'armed';
     $('btnCorrect').disabled = !buzzed;
     $('btnWrongReopen').disabled = !buzzed;
-    $('btnWrongNext').disabled = !buzzed;
+    $('btnWrongNext').disabled = !next;
+    $('btnWrongNext').firstChild.textContent = next ? `Wrong · pass to ${nameOf(next.id)}` : 'Wrong · pass on';
+    $('wrongHint').textContent = 'reopen · W';
 
-    $('queue').innerHTML = game.queue.map((q, i) => {
+    $('queue').innerHTML = game.queue.map((q) => {
       const p = game.players[q.id];
       const out = game.excluded.includes(q.id);
-      return `<li style="${out ? 'opacity:.45;text-decoration:line-through' : ''}"><span>${i + 1}. <span class="dot" style="background:${esc(p ? p.color : '#888')}"></span> ${esc(nameOf(q.id))}</span><span class="muted">${Math.round(q.rt)} ms</span></li>`;
+      return `<li class="${out ? 'struck' : ''}"><span><span class="dot" style="background:${esc(p ? p.color : '#888')}"></span> ${esc(nameOf(q.id))}</span><span class="muted">${Math.round(q.rt)} ms</span></li>`;
     }).join('');
+    $('queue').classList.toggle('hidden', !game.queue.length);
 
     renderLibrary();
     const list = playerList();
@@ -417,9 +438,15 @@
     });
 
     const joinUrl = BZ.pageUrl('play.html', room);
-    $('joinLink').href = joinUrl;
-    $('joinLink').textContent = joinUrl;
     BZ.renderQr($('qr'), joinUrl);
+    const short = new URL('play.html', location.href);
+    $('joinShort').textContent = short.host + short.pathname;
+    $('joinCode').textContent = room;
+    $('btnCopyJoin').onclick = async () => {
+      try { await navigator.clipboard.writeText(joinUrl); $('btnCopyJoin').textContent = 'Copied'; }
+      catch (e) { prompt('Join link:', joinUrl); }
+      setTimeout(() => { $('btnCopyJoin').textContent = 'Copy link'; }, 1500);
+    };
     $('displayLink').href = BZ.pageUrl('display.html', room);
     $('roomInput').value = room;
     $('brokerInput').value = BZ.brokerUrl();
@@ -499,17 +526,28 @@
     });
   }
 
+  let otherAdminTimer = null;
   function connect() {
     client = BZ.connect({
       role: 'host',
       onStatus: (s) => BZ.setStatusBadge($('status'), s),
       onConnect: () => {
-        client.subscribe([topic(room, 'hello'), topic(room, 'buzz'), topic(room, 'voice/#')], { qos: 1 });
+        client.subscribe([topic(room, 'hello'), topic(room, 'buzz'), topic(room, 'voice/#'), topic(room, 'state')], { qos: 1 });
         publish();
       },
     });
-    client.on('message', (t, payload) => {
+    client.on('message', (t, payload, packet) => {
       const msg = BZ.parse(payload);
+      if (t.endsWith('/state')) {
+        // a live (not stored) state from a different admin page = two admins fighting over the room
+        if (msg && msg.admin && msg.admin !== adminId && !packet.retain) {
+          $('otherAdmin').textContent = `Another admin page is running room ${room} on a different device or browser. The two will overwrite each other: close one of them.`;
+          $('otherAdmin').classList.remove('hidden');
+          clearTimeout(otherAdminTimer);
+          otherAdminTimer = setTimeout(() => $('otherAdmin').classList.add('hidden'), 20000);
+        }
+        return;
+      }
       if (t.endsWith('/hello')) onHello(msg);
       else if (t.endsWith('/buzz')) onBuzz(msg);
       else if (t.includes('/voice/')) {

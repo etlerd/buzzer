@@ -62,7 +62,7 @@ The admin page trims silence from both ends, evens out the volume, keeps at most
 
 ## Updating the site
 
-Script and stylesheet links carry a version tag (`?v=20261102f`). Change it in all four HTML files whenever a `.js` or `.css` file changes; otherwise browsers can mix a new page with old cached code for up to 10 minutes (GitHub Pages' cache time).
+Script and stylesheet links carry a version tag (`?v=20261102h`). Change it in all four HTML files whenever a `.js` or `.css` file changes; otherwise browsers can mix a new page with old cached code for up to 10 minutes (GitHub Pages' cache time).
 
 ## Other games
 

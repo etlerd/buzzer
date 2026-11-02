@@ -2,95 +2,99 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0d1a">
   <title>Buzzer Admin</title>
-  <link rel="stylesheet" href="css/style.css?v=20261102f">
+  <link rel="stylesheet" href="css/style.css?v=20261102h">
 </head>
-<body>
+<body class="admin-page">
 <div class="wrap">
-  <div class="host-top">
-    <div>
-      <h1>Admin</h1>
-      <div class="row">
-        <span class="muted">Room</span>
-        <strong class="code" id="roomCode" style="font-size:1.4rem;color:var(--accent)">-----</strong>
-        <span class="status" id="status">Connecting…</span>
-      </div>
+  <header class="host-top">
+    <div class="row">
+      <h1 style="margin:0">Admin</h1>
+      <span class="status" id="status">Connecting…</span>
     </div>
     <div class="row">
-      <a href="#" id="displayLink" target="_blank" rel="noopener"><button>Open studio display</button></a>
+      <span class="muted">Room</span>
+      <strong class="code room-code" id="roomCode">-----</strong>
+      <a href="#" id="displayLink" target="_blank" rel="noopener" class="btn-link">Studio display ↗</a>
     </div>
-  </div>
+  </header>
+
+  <div class="notice error hidden" id="otherAdmin" role="alert"></div>
 
   <div class="host-grid">
     <main class="stack">
-      <section class="panel">
+      <section class="panel live">
         <div class="big-state" id="bigState">
           <div class="label" id="phaseLabel">Locked</div>
-          <div class="value" id="phaseValue">Waiting</div>
+          <div class="value" id="phaseValue">Ready</div>
+          <div class="sub" id="phaseSub"></div>
         </div>
-        <div class="controls">
-          <button class="armed" id="btnArm">Open buzzers<span class="kbd">Space</span></button>
-          <button class="ok" id="btnCorrect">Correct<span class="kbd">C</span></button>
-          <button class="bad" id="btnWrongReopen">Wrong → reopen<span class="kbd">W</span></button>
-          <button class="bad" id="btnWrongNext">Wrong → next in line<span class="kbd">N</span></button>
-          <button id="btnLock">Lock / clear<span class="kbd">L</span></button>
-          <button id="btnNewQuestion">Next question<span class="kbd">Q</span></button>
+        <ol class="queue" id="queue"></ol>
+        <div class="controls" id="controls">
+          <button class="armed big" id="btnArm">Open buzzers<span class="kbd">Space</span></button>
+          <button class="ok big" id="btnCorrect">Correct<span class="kbd">C</span></button>
+          <button class="bad big" id="btnWrongReopen">Wrong<span class="kbd" id="wrongHint">reopen · W</span></button>
+          <button class="minor" id="btnWrongNext">Wrong · pass on<span class="kbd">N</span></button>
+          <button class="minor" id="btnLock">Lock<span class="kbd">L</span></button>
+          <button class="minor" id="btnNewQuestion">Next question<span class="kbd">Q</span></button>
         </div>
-        <ul class="queue" id="queue"></ul>
       </section>
 
-      <section class="panel stack">
-        <div class="row">
-          <div class="grow">
-            <label for="mode">Winner decided by</label>
-            <select id="mode">
-              <option value="fair">Reaction time (latency-fair)</option>
-              <option value="arrival">First to arrive at host</option>
-            </select>
-          </div>
-          <div class="grow">
-            <label for="window">Collect window (ms, fair mode)</label>
-            <input id="window" type="number" value="400" min="0" step="50">
-          </div>
+      <section class="panel">
+        <div class="row" style="justify-content:space-between">
+          <h3 style="margin:0">Players</h3>
+          <span class="muted" id="playerCount">0</span>
+        </div>
+        <table class="players"><tbody id="players"></tbody></table>
+        <div class="row" style="margin-top:10px;justify-content:space-between">
+          <p class="muted small-text" id="voiceStatus" style="margin:0"></p>
+          <button class="small" id="btnRemoveOffline">Remove offline</button>
         </div>
       </section>
+
       <section class="panel stack">
         <div class="row" style="justify-content:space-between">
           <h3 style="margin:0">Buzzer sounds</h3>
           <button class="small primary" id="btnAddRecordings">Add sounds</button>
         </div>
-        <p class="muted" style="font-size:.85rem;margin:0">Each player's own sound, played instead of the standard buzz when they buzz in. Load them before players arrive: name each WAV or MP3 after the player, e.g. <b>Alice.mp3</b> or <b>Mary Jo.wav</b>, and anyone who joins with that name gets it automatically (capitals, spaces and punctuation are ignored). If a name doesn't match, use <b>Assign to</b>.</p>
-        <p class="muted" id="libraryStatus" style="font-size:.85rem;margin:0"></p>
+        <details class="help">
+          <summary>How sounds are matched</summary>
+          <p>A player's sound plays instead of the standard buzz. Load them before players arrive: name each WAV or MP3 after the player, e.g. <b>Alice.mp3</b> or <b>Mary Jo.wav</b>. Anyone who joins with that name gets it automatically; capitals, spaces and punctuation are ignored. If a name doesn't match, use <b>Assign to</b>. <b>Add sound</b> in the player list uploads one for that player directly.</p>
+        </details>
+        <p class="muted small-text" id="libraryStatus" style="margin:0"></p>
         <ul class="library" id="library"></ul>
       </section>
     </main>
 
     <aside class="stack">
-      <section class="panel">
-        <h3>Join</h3>
-        <div class="qr" id="qr"></div>
-        <p class="join-link"><a id="joinLink" href="#" target="_blank" rel="noopener"></a></p>
-      </section>
-
-      <section class="panel">
+      <section class="panel join-panel">
         <div class="row" style="justify-content:space-between">
-          <h3>Players</h3>
-          <span class="muted" id="playerCount">0</span>
+          <h3 style="margin:0">Join</h3>
+          <button class="small" id="btnCopyJoin">Copy link</button>
         </div>
-        <table class="players"><tbody id="players"></tbody></table>
-        <div class="row" style="margin-top:12px">
-          <button class="small" id="btnRemoveOffline">Remove offline</button>
-        </div>
-        <p class="muted" id="voiceStatus" style="font-size:.85rem;margin:12px 0 0">Add sound: upload a WAV or MP3 for that player. The display page plays it instead of the standard buzz.</p>
+        <div class="qr" id="qr"></div>
+        <p class="join-hint muted small-text">Scan, or open <span id="joinShort"></span> and enter <b class="code" id="joinCode"></b></p>
       </section>
 
       <section class="panel">
         <details>
-          <summary>Room &amp; broker settings</summary>
+          <summary>Settings</summary>
           <div class="stack" style="margin-top:12px">
             <div>
-              <label for="roomInput">Room code (fixed code = no IoT reflash)</label>
+              <label for="mode">Winner decided by</label>
+              <select id="mode">
+                <option value="fair">Reaction time (fair on slow connections)</option>
+                <option value="arrival">First to arrive</option>
+              </select>
+            </div>
+            <div>
+              <label for="window">Wait for other buzzes (ms, reaction-time mode)</label>
+              <input id="window" type="number" value="400" min="0" step="50">
+            </div>
+            <div>
+              <label for="roomInput">Room code (keep it fixed so buzzer sounds stay loaded)</label>
               <div class="row">
                 <input id="roomInput" class="code grow" maxlength="12">
                 <button id="btnSetRoom">Use</button>
@@ -98,11 +102,11 @@
             </div>
             <button id="btnNewRoom">Generate new room code</button>
             <div>
-              <label for="brokerInput">MQTT WebSocket broker URL</label>
+              <label for="brokerInput">Message server (MQTT WebSocket URL)</label>
               <input id="brokerInput" placeholder="wss://broker.hivemq.com:8884/mqtt">
             </div>
-            <button id="btnSaveBroker">Save broker &amp; reload</button>
-            <p class="muted" style="font-size:.85rem">The default public broker needs no account but anyone who guesses the room code can see or send messages. See README for a private broker.</p>
+            <button id="btnSaveBroker">Save server &amp; reload</button>
+            <p class="muted small-text">The default public server needs no account, but anyone who guesses the room code can see or send messages.</p>
           </div>
         </details>
       </section>
@@ -111,10 +115,10 @@
 </div>
 <input type="file" id="voiceFile" accept="audio/*,.mp3,.wav,.m4a" class="hidden">
 <input type="file" id="libraryFiles" accept="audio/*,.mp3,.wav,.m4a" multiple class="hidden">
-<script src="js/vendor/mqtt.min.js?v=20261102f"></script>
-<script src="js/vendor/qrcode.js?v=20261102f"></script>
-<script src="js/common.js?v=20261102f"></script>
-<script src="js/voice.js?v=20261102f"></script>
-<script src="js/admin.js?v=20261102f"></script>
+<script src="js/vendor/mqtt.min.js?v=20261102h"></script>
+<script src="js/vendor/qrcode.js?v=20261102h"></script>
+<script src="js/common.js?v=20261102h"></script>
+<script src="js/voice.js?v=20261102h"></script>
+<script src="js/admin.js?v=20261102h"></script>
 </body>
 </html>

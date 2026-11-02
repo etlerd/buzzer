@@ -53,7 +53,7 @@
   function showGame() {
     $('joinForm').classList.add('hidden');
     $('game').classList.remove('hidden');
-    $('me').textContent = `${name} · ${room}`;
+    $('me').innerHTML = `<span class="dot" id="myDot"></span> ${esc(name)} <span class="muted code">${esc(room)}</span>`;
     requestWakeLock();
     render();
   }
@@ -152,6 +152,7 @@
   function render() {
     if ($('game').classList.contains('hidden')) return;
     const mine = me();
+    if ($('myDot')) $('myDot').style.background = mine ? mine.color : 'transparent';
 
     if (!client || !client.connected) { setButton('locked', 'WAIT'); setInfo('Connecting…'); return; }
     if (!state) { setButton('locked', 'WAIT'); setInfo(`Waiting for host to open room <strong class="code">${esc(room)}</strong>`); return; }
