@@ -64,6 +64,10 @@ The admin page trims silence from both ends, evens out the volume, keeps at most
 
 Script and stylesheet links carry a version tag (`?v=20261102f`). Change it in all four HTML files whenever a `.js` or `.css` file changes; otherwise browsers can mix a new page with old cached code for up to 10 minutes (GitHub Pages' cache time).
 
+## Other games
+
+The buzzer runs next to any game today: show the game on the main screen, players buzz on their phones, the host uses the admin page. Plans for deeper integration (drop-in script, OBS overlay, keyboard bridge) and the message contract to keep stable are in [docs/PLUGINS.md](docs/PLUGINS.md).
+
 ## Message layout (for reference)
 
 Topics under `gsbuzz/v1/<ROOM>/`:
@@ -73,8 +77,8 @@ Topics under `gsbuzz/v1/<ROOM>/`:
 | `state` (retained) | admin → all | full game state |
 | `hello` | player → admin | join and heartbeat |
 | `buzz` | player → admin | `{id, armId, rt}` |
-| `voice/<name>` (retained) | admin → display | recording manifest `{id, n, bytes}` |
+| `voice/<name>` (retained) | admin → display | buzzer-sound manifest `{id, n, bytes, name}` |
 | `voice/<name>/<id>/<i>` (retained) | admin → display | WAV data, 32 KB chunks |
-| `say` | admin → display | play a name now |
+| `say` | admin → display | play a buzzer sound now |
 
 The ESP32 hub and seat-pod version is in git history at commit `767cdd8`.
