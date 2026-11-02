@@ -1,121 +1,173 @@
 # Game Show Buzzer
 
-Phones are the buzzers, a host console picks the winner, and a studio screen and/or an ESP32 light rig shows who buzzed in. Runs entirely on GitHub Pages. No server to run.
+Wireless buzzer system for up to 12 contestants. No internet or venue network needed.
 
-| Page | Who uses it |
-|---|---|
-| `index.html` | Landing page |
-| `host.html` | Host laptop: opens/locks buzzers, judges answers, keeps score, shows join QR code |
-| `play.html` | Contestant phones: big buzzer button |
-| `display.html` | Studio TV/projector: who buzzed in, question, scoreboard, join QR |
-| `firmware/studio_light/` | ESP32: lights a LED segment or lamp over the contestant who buzzed in, optional OLED name display |
-
-## How it works
-
-GitHub Pages only serves static files, so devices talk through an **MQTT broker** over WebSockets. MQTT was chosen because the ESP32 speaks it natively; phones, host, display and lights all share one channel.
+- **Seat pods**: one per contestant. A big arcade button and an LED strip over the seat, battery powered, no wires to anything.
+- **Hub**: one ESP32 that hears the pods by radio, decides who pressed first, runs the game, plays sounds and recorded names through an **aux jack**, and creates its own Wi-Fi for the host and TV screens.
+- **Host console** and **studio display**: web pages stored on the hub. Any phone, tablet, laptop or smart-TV browser works.
 
 ```
- phones ──hello/buzz──▶  MQTT broker  ◀──state (retained)── host console
-                            │
-             state ─────────┼──────────▶ studio display (browser)
-             iot (slim) ────┴──────────▶ ESP32 studio light
+ seat pods ──ESP-NOW radio──▶ hub ──aux jack──▶ mixer / recorder / speaker
+ (button + light)              │
+                               └─ own Wi-Fi "GameShow" ──▶ host console (phone/tablet/laptop)
+                                                       └─▶ studio display (TV or laptop on HDMI)
 ```
 
-The host browser is the only authority: it decides the winner and publishes a retained `state` message. Every other device just renders it, so a phone or display that reconnects instantly shows the current state.
+ESP-NOW is direct ESP32-to-ESP32 radio: no router, no network login, about 1–3 ms per press. Pods resend until the hub confirms, and each press carries how long ago it really happened, so a press that needed a retry still wins if it came first.
 
-Topics (`ROOM` = room code):
+## Parts
 
-| Topic | Direction | Content |
+**Hub (one)**
+
+| Part | Approx. | Notes |
 |---|---|---|
-| `gsbuzz/v1/ROOM/state` | host → all, retained | full game state JSON |
-| `gsbuzz/v1/ROOM/iot` | host → devices, retained | slim JSON: `p` phase, `s`/`n`/`c` slot/name/color of who buzzed, `r`/`rs`/`rn` last correct/wrong call, `k` call counter, `x` locked-out slots |
-| `gsbuzz/v1/ROOM/hello` | player → host | join + heartbeat every 4 s, `{id, name}`; `{id, bye:true}` on leave |
-| `gsbuzz/v1/ROOM/buzz` | player → host | `{id, armId, rt}` |
-| `gsbuzz/v1/ROOM/device/ID` | device → host, retained | `{online}`; host shows "Studio lights: N online" |
+| ESP32-S3 dev board, 16 MB flash (e.g. ESP32-S3-DevKitC-1 N16R8) | $10 | 16 MB is needed for web pages, voice clips and browser firmware updates |
+| PCM5102A I2S audio board with 3.5 mm jack | $5 | Line-level aux out |
+| USB wall adapter | — | Power the hub from its own adapter, not the laptop, to avoid hum (see Audio) |
 
-## Set up GitHub Pages
+**Per seat pod (up to 12)**
 
-1. Merge this branch to `main`.
-2. Repository **Settings → Pages → Build and deployment → Deploy from a branch → `main` / `(root)`**.
-3. Site appears at `https://<user>.github.io/buzzer/`.
+| Part | Approx. | Notes |
+|---|---|---|
+| ESP32-C3 SuperMini | $3 | Any ESP32 works; change pins in `config.h` |
+| 60 mm arcade button with **5 V** LED | $4 | |
+| NPN transistor (2N2222) + 1 kΩ resistor | — | Drives the button LED |
+| WS2812B LED strip, 15 LEDs | $3 | Mount over the seat |
+| 330 Ω resistor, 470–1000 µF capacitor | — | Resistor on strip data, capacitor across strip power |
+| USB power bank, 5000–10000 mAh, **no auto-off** | $10–15 | Many power banks switch off at low current draw. Pick one with an "always on" / low-current mode |
+| Small box | $3 | |
 
-## Running a game
+About $25 per pod plus about $15 for the hub: roughly $315 for 12 seats.
 
-1. Open `host.html` on the host laptop. A room code is generated and remembered by that browser.
-2. Contestants scan the QR code (or open `play.html` and type the code) and enter a name. Each gets a color and a slot number (#1, #2…), assigned in join order. **Slot numbers are what the light rig uses**, so seat contestants in slot order, or kick/rejoin to fix.
-3. Click **Open studio display** and drag that window to the TV, or open `display.html?room=CODE` on any other machine. Click once to enable sound and full screen. Add `&qr=0` to hide the join code during the show.
-4. Host keys:
+## Wiring
 
-| Key | Action |
+**Hub → PCM5102A**
+
+| PCM5102A | ESP32-S3 |
 |---|---|
-| Space | Open buzzers |
-| C | Correct: add points, lock |
-| W | Wrong: subtract penalty, lock that player out, reopen for everyone else |
-| N | Wrong: lock that player out, hand the question to the next person who buzzed |
-| L | Lock and clear |
-| Q | New question: clears lock-outs and the question text |
+| VIN | 5V |
+| GND | GND |
+| BCK | GPIO 4 |
+| LCK (LRCK) | GPIO 5 |
+| DIN | GPIO 6 |
+| SCK | GND |
+| XMT (mute) | 3.3V if your board does not already tie it high |
 
-Phones that press **before** the buzzers open get a 1-second "TOO SOON" lockout, so mashing early does not pay.
+**Pod (ESP32-C3 SuperMini)**
 
-### Who wins: two modes
-
-- **Reaction time (default, latency-fair).** Each phone measures time from when *it* saw the buzzers open to the tap. The host collects buzzes for a short window (default 400 ms) after the first one, then picks the lowest reaction time. Network delay does not count against anyone. Weakness: a phone running modified code could lie about its time. Fine for friends, not for prize money.
-- **First to arrive at host.** Whoever's message reaches the host first wins. Cannot be faked, but a phone on slow cellular data loses to one on studio Wi-Fi even with a faster thumb (typically 30–150 ms difference).
-
-## Studio light (ESP32)
-
-### Recommended hardware
-
-| Part | Notes |
+| Connection | Pin |
 |---|---|
-| ESP32 dev board (any) | ~$6 |
-| WS2812B LED strip, 5 V | One segment per contestant, mounted above each seat. 10 LEDs per segment by default |
-| 5 V power supply | ~60 mA per LED at full white; 8 × 10 LEDs at the default brightness fits a 5 V 4 A supply |
-| 330 Ω resistor + 1000 µF capacitor | Resistor on the data line, capacitor across strip power. Standard NeoPixel practice |
-| Optional SSD1306 128×64 I2C OLED | Shows the name. SDA 21, SCL 22 |
-| Optional relay board | One relay per contestant, for lamps instead of LEDs |
-| Optional piezo | Beep on buzz |
+| Arcade button switch | GPIO 3 and GND |
+| Button LED | LED+ → 5V, LED− → transistor collector, emitter → GND, GPIO 4 → 1 kΩ → base |
+| LED strip data | GPIO 5 → 330 Ω → DIN |
+| LED strip power | 5V and GND from the power bank (same USB 5V as the board) |
 
-**About "a lightbulb over their heads":** an LED strip segment per seat gives the same effect at 5 V, can show each contestant's color, and can flash green/red on correct/wrong. Switching mains-voltage bulbs with bare relay boards near people and props is a shock and fire risk. If you want real bulbs, use an enclosed, rated relay module or smart plugs, or 12 V lamps.
+If the strip flickers or shows wrong colors, its 5 V data input is not reading the ESP32's 3.3 V signal reliably: keep the data wire under 30 cm, or add a 74AHCT125 level shifter.
 
-### Wiring (defaults)
+## Setup
 
-- LED strip data → GPIO 5 (through 330 Ω), strip GND ↔ ESP32 GND, strip 5 V from the power supply (not from the ESP32's pin).
-- Relays (if `USE_RELAYS 1`) → GPIO 16, 17, 18, 19, 23, 25, 26, 27 for slots 1–8.
+### 1. Flash the hub (once, by USB)
 
-### Flashing
+1. Arduino IDE → Boards Manager → install **esp32 by Espressif, 3.x**.
+2. Library Manager → install **ArduinoJson** (v7) and **WebSockets** (Markus Sattler).
+3. Copy `firmware/hub/config.example.h` to `config.h` (git-ignored). Set the Wi-Fi name, password and radio channel.
+4. Tools → Board **ESP32S3 Dev Module**, Flash Size **16MB**. The partition layout comes from `partitions.csv` in the sketch folder. If your IDE ignores it, choose *16M Flash (3MB APP/9.9MB FATFS)*.
+5. Upload `firmware/hub/hub.ino`.
 
-1. Arduino IDE → install the **esp32** board package (Espressif).
-2. Library Manager: **PubSubClient** (Nick O'Leary), **ArduinoJson** (v7), **Adafruit NeoPixel**, and if using the OLED **Adafruit SSD1306** + **Adafruit GFX**.
-3. Copy `firmware/studio_light/config.example.h` to `config.h` in the same folder (git-ignored) and set WiFi, room code, and which outputs you have.
-4. Upload `studio_light.ino`.
-5. Serial monitor at 115200 baud:
-   - `room ABCDE`: change room without reflashing (saved to flash)
-   - `test`: lights each slot in turn to check wiring
-   - `status`: WiFi/broker/room state
+### 2. Upload the web pages (from a browser)
 
-Tip: set a **fixed room code** in the host console (Room & broker settings) so the light never needs reconfiguring between games.
+1. Join the **GameShow** Wi-Fi on a laptop.
+2. Open **http://192.168.4.1/admin** (or http://buzzer.local/admin).
+3. **Upload web folder** → choose the `web` folder from this project.
 
-### What the lights do
+The admin page is built into the firmware, so it always works even if the uploaded pages are broken. Later firmware updates also go through it: in Arduino IDE use *Sketch → Export Compiled Binary*, then upload `hub.ino.bin`. Scores and pairings are kept.
 
-| Game state | LEDs | Relays | OLED |
+### 3. Flash the pods
+
+1. Library Manager → install **Adafruit NeoPixel**.
+2. Copy `firmware/pod/config.example.h` to `config.h`. `RADIO_CHANNEL` must match the hub.
+3. Upload `firmware/pod/pod.ino` to every pod. All pods get identical firmware.
+
+### 4. Pair pods to seats
+
+1. Open the host console: **http://192.168.4.1**.
+2. Set **Seats in use**.
+3. New pods blink blue. On a seat card click **Pair pod**, then press that seat's button. Repeat for each seat.
+4. **Find** blinks a pod to check which seat it's on. Pairings are saved on the hub.
+
+### 5. Record contestant names
+
+1. Record each name as a voice memo on any phone, e.g. "Alice!".
+2. On the host console, type the contestant's name, then **Add voice** and pick the recording.
+3. The browser trims silence, evens out the volume, converts it to the hub's format, uploads it and plays it on the aux output.
+
+Clips are matched by **name**, not seat, so they follow a contestant to any seat. If you rename someone, upload a new clip. iPhone `.m4a`, `.mp3` and `.wav` all work. Recording directly in the page is not possible: browsers block the microphone on plain `http://` pages like the hub's.
+
+## Running the show
+
+Open the **host console** on a phone, tablet or laptop, and **Studio display** on the TV. Both join the GameShow Wi-Fi.
+
+| Key | Button | Action |
+|---|---|---|
+| Space | Open buzzers | Pods breathe white, contestants may press |
+| C | Correct | Adds points, green flash, locks |
+| W | Wrong → reopen | Subtracts penalty, red flash, that contestant is out for this question, reopens for the others after 1.2 s |
+| N | Wrong → next in line | Same, but hands the question to whoever pressed second (their name is announced) |
+| L | Lock / clear | Lock without judging |
+| Q | New question | Clears lock-outs and the question text |
+
+Pressing **before** the buzzers open gives that contestant a 1-second lockout (dim red light), so mashing early does not pay.
+
+| Moment | Seat light | Button LED | Aux jack |
 |---|---|---|---|
-| Locked | off | off | READY |
-| Buzzers open | dim white breathing over everyone not locked out | off | OPEN |
-| Buzzed in | that contestant's segment in their color | that contestant's lamp on | name |
-| Correct / wrong | green / red flash over who answered, 2.5 s | lamp on during flash | CORRECT / WRONG + name |
+| Buzzers open | dim white breathing | pulsing | rising chime |
+| Buzzed first | full seat color | on | buzzer sound + recorded name |
+| Correct | green flash | on | rising tones |
+| Wrong | red flash | off | low buzz |
+| Pressed too early | dim red | off | — |
+| Not paired / Find | blinking | blinking | — |
 
-## Limits and security
+Optional: replace any built-in sound by uploading `/sfx/armed.wav`, `/sfx/buzz.wav`, `/sfx/correct.wav` or `/sfx/wrong.wav` (16-bit mono 22050 Hz WAV) through the admin page.
 
-- **The default broker (`broker.hivemq.com`) is public.** No account needed, but anyone who knows or guesses the room code can watch traffic or send fake buzzes, and the broker has no uptime guarantee. Fine for parties and rehearsals. For anything that matters, create a free private broker (HiveMQ Cloud or EMQX Serverless), then in the host console set its WebSocket URL under *Room & broker settings*. Username/password can be supplied as `?user=…&pass=…` URL parameters. Credentials in a web page are readable by anyone who has the page, so this keeps out strangers, not your own players.
-- Run only **one host tab** per room. Two hosts will overwrite each other.
-- Host state (players, scores) is saved in the host browser's local storage and survives reloads.
-- Max 16 players per room.
-- iOS Safari does not support vibration, so phones there give no haptic feedback.
+## Backup: USB instead of Wi-Fi
 
-## Ideas not built yet
+If the venue's network equipment interferes with the hub's Wi-Fi (see Limits), run the host console over a USB cable:
 
-- Physical arcade buttons wired to ESP32s (ESP-NOW to the studio box) for contestants who should not be holding phones on camera.
-- Answer countdown timer shown on the display and lights.
-- Teams mode (shared score, one buzz per team).
-- Control the lights through [WLED](https://kno.wled.ge/) instead of this firmware, if you already run WLED.
+1. Plug the hub into the host laptop.
+2. Open `web/index.html` **as a file** in Chrome or Edge.
+3. Click **Connect hub by USB** and pick the hub's port.
+4. Open `web/display.html` the same way in another window and drag it to the TV. It mirrors the host window.
+
+Pods, lights and audio work the same. Voice uploads need the Wi-Fi connection, so do them beforehand. The hub may restart when the USB connection opens; scores and pairings survive.
+
+## Try it without hardware
+
+`tools/sim` runs the hub's real game logic on a computer, with on-screen pods.
+
+```
+cd tools/sim
+npm install
+npm run build     # needs g++ and git
+npm start
+```
+
+Open http://localhost:8080 (host), http://localhost:8080/display.html, and http://localhost:8080/pods.html (virtual buttons; keys 1–9, 0, -, = press pods 1–12).
+
+## Limits
+
+- **Not yet run on real hardware.** The game logic has automated tests and the web pages were tested in browsers against it. The firmware was checked against the current ESP32 core's library signatures but not compiled with the ESP32 compiler. Expect small fixes on first flash.
+- **Managed networks.** Some enterprise Wi-Fi systems actively disconnect devices from Wi-Fi networks they don't recognize, such as the hub's. The pods are not affected because ESP-NOW is not a Wi-Fi connection; only the host and display screens could drop. Use the USB backup, or ask IT. If phone hotspots work in that room, this will too.
+- **Radio channel.** Pick a `RADIO_CHANNEL` (1, 6 or 11 are typical) that the venue Wi-Fi uses least. Hub and pods must match.
+- **Audio hum.** A hub powered from a laptop's USB while plugged into a mixer often hums. Power the hub from its own wall adapter, or add a ground-loop isolator on the aux cable.
+- **Screens.** The hub's Wi-Fi handles about 8 connected devices: enough for host, TV and spares.
+- **Battery life.** Pods keep their radio on to receive light changes: roughly 100 mA, plus the strip when lit. A 10000 mAh power bank lasts well beyond a recording day.
+
+## Files
+
+| Path | What |
+|---|---|
+| `firmware/hub/` | Hub sketch. `game.h` holds all game rules, `audio.h` the aux output, `admin_page.h` the built-in admin page |
+| `firmware/pod/` | Seat pod sketch |
+| `firmware/*/protocol.h` | Radio packet format (identical copies; keep them in sync) |
+| `web/` | Host console and studio display, uploaded to the hub |
+| `tools/sim/` | Computer simulator of the hub |

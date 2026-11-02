@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Virtual Pods</title>
+<style>
+  :root { --bg: #0b0d1a; --panel: #151933; --line: #2b3163; --text: #f3f4ff; --muted: #9aa0c8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.4 system-ui, sans-serif; padding: 16px; }
+  h1 { margin: 0 0 4px; }
+  p { color: var(--muted); margin: 0 0 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+  .pod { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px; text-align: center; }
+  .light { height: 18px; border-radius: 9px; background: #222; margin-bottom: 10px; transition: background .08s; }
+  .btn { width: 90px; height: 90px; border-radius: 50%; border: 0; background: #3a3f63; color: #fff; font-weight: 800; cursor: pointer; }
+  .btn:active { transform: translateY(3px); }
+  .mac { font-size: .75rem; color: var(--muted); margin-top: 6px; font-family: ui-monospace, monospace; }
+  .log { margin-top: 16px; font-family: ui-monospace, monospace; font-size: .85rem; color: var(--muted); min-height: 1.4em; }
+</style>
+</head>
+<body>
+<h1>Virtual pods</h1>
+<p>Stand-ins for the real seat pods. Unpaired pods blink blue; pair them from the host console. Keys 1–9, 0, -, = press pods 1–12.</p>
+<div class="grid" id="grid"></div>
+<div class="log" id="log"></div>
+<script>
+const N = 12;
+const pods = [];
+const ws = new WebSocket(`ws://${location.host}/ws`);
+const modes = {};
+for (let i = 0; i < N; i++) {
+  const mac = `02:00:00:00:00:${(i + 1).toString(16).padStart(2, '0')}`;
+  const el = document.createElement('div');
+  el.className = 'pod';
+  el.innerHTML = `<div class="light"></div><button class="btn">POD ${i + 1}</button><div class="mac">${mac}</div>`;
+  document.getElementById('grid').appendChild(el);
+  const pod = { mac, el, seq: 1 };
+  el.querySelector('button').addEventListener('pointerdown', () => press(pod));
+  pods.push(pod);
+}
+function press(pod) { pod.seq = (pod.seq + 1) & 255; ws.send(JSON.stringify({ sim: 'press', mac: pod.mac, seq: pod.seq, delay: 0 })); }
+document.addEventListener('keydown', (e) => { const i = '1234567890-='.indexOf(e.key); if (i >= 0 && !e.repeat) press(pods[i]); });
+ws.onopen = () => setInterval(() => pods.forEach((p) => ws.send(JSON.stringify({ sim: 'hello', mac: p.mac }))), 1000);
+ws.onmessage = (e) => {
+  const m = JSON.parse(e.data);
+  if (m.t === 'frame') m.e.forEach((x) => { modes[x.mac] = x; });
+  if (m.t === 'sound') document.getElementById('log').textContent = `aux jack: ${m.name}${m.s ? ' (seat ' + m.s + ')' : ''}`;
+};
+// same animations as the real pod firmware
+setInterval(() => {
+  const now = Date.now();
+  for (const p of pods) {
+    const x = modes[p.mac];
+    const light = p.el.querySelector('.light');
+    let c = '#222';
+    if (x) {
+      const rgb = '#' + x.rgb;
+      const blinkFast = (now / 200 | 0) % 2 === 0, blinkSlow = (now / 500 | 0) % 2 === 0;
+      if (x.mode === 1) { const b = 0.5 + 0.5 * Math.sin(now / 300); c = `rgba(255,255,255,${0.15 + 0.35 * b})`; }
+      else if (x.mode === 2) c = rgb;
+      else if (x.mode === 3) c = blinkFast ? '#00ff00' : '#222';
+      else if (x.mode === 4) c = blinkFast ? '#ff0000' : '#222';
+      else if (x.mode === 5) c = '#551111';
+      else if (x.mode === 6) c = blinkSlow ? rgb : '#222';
+    }
+    light.style.background = c;
+  }
+}, 30);
+</script>
+</body>
+</html>

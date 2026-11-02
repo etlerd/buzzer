@@ -1,0 +1,12 @@
+{
+  "name": "buzzer-hub-simulator",
+  "private": true,
+  "description": "Runs the hub's game logic on a computer so the web pages can be tried without hardware",
+  "scripts": {
+    "build": "git clone --depth 1 https://github.com/bblanchon/ArduinoJson.git .arduinojson 2>/dev/null; g++ -std=c++17 -O1 -I.arduinojson/src -o sim sim.cpp",
+    "start": "node devhub.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

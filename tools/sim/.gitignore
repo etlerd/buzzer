@@ -1,0 +1,4 @@
+node_modules/
+sim
+.arduinojson/
+voices/
