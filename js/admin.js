@@ -26,14 +26,13 @@
     queue: [],            // [{id, rt, at}] buzz order for this opening
     excluded: [],         // ids locked out for the current question (answered wrong)
     kicked: [],
-    question: '',
     result: null,         // {id, ok, n}
     resultSeq: 0,
-    players: {},          // id -> {id, name, slot, color, score, lastSeen}
+    players: {},          // id -> {id, name, slot, color, lastSeen, voice}
   });
   let game = Object.assign(blank(), store.get('game.' + room, {}));
   if (game.phase === 'armed') game.phase = 'locked'; // never resume mid-collection after reload
-  const settings = Object.assign({ points: 10, penalty: 0, mode: 'fair', window: 400 }, store.get('hostSettings', {}));
+  const settings = Object.assign({ mode: 'fair', window: 400 }, store.get('hostSettings', {}));
 
   let client = null;
   let collectTimer = null;
@@ -60,9 +59,8 @@
       queue: game.queue.map((q) => ({ id: q.id, rt: q.rt })),
       excluded: game.excluded,
       kicked: game.kicked,
-      question: game.question,
       result: game.result,
-      players: playerList().map((p) => ({ id: p.id, name: p.name, slot: p.slot, color: p.color, score: p.score, online: isOnline(p), voice: voiceOf(p) })),
+      players: playerList().map((p) => ({ id: p.id, name: p.name, slot: p.slot, color: p.color, online: isOnline(p), voice: voiceOf(p) })),
       ts: Date.now(),
     };
   }
@@ -98,8 +96,6 @@
 
   function newQuestion() {
     game.excluded = [];
-    game.question = '';
-    $('question').value = '';
     lockClear();
   }
 
@@ -111,7 +107,6 @@
   function correct() {
     if (game.phase !== 'buzzed' || !game.winner) return;
     const p = game.players[game.winner];
-    if (p) p.score += Number(settings.points) || 0;
     setResult(game.winner, true);
     game.phase = 'locked';
     game.excluded = [];
@@ -123,7 +118,6 @@
     if (game.phase !== 'buzzed' || !game.winner) return;
     const id = game.winner;
     const p = game.players[id];
-    if (p) p.score -= Number(settings.penalty) || 0;
     if (!game.excluded.includes(id)) game.excluded.push(id);
     setResult(id, false);
     sounds.wrong();
@@ -178,7 +172,7 @@
       const used = new Set(Object.values(game.players).map((x) => x.slot));
       let slot = 1;
       while (used.has(slot)) slot++;
-      p = game.players[id] = { id, name, slot, color: PALETTE[(slot - 1) % PALETTE.length], score: 0, lastSeen: 0 };
+      p = game.players[id] = { id, name, slot, color: PALETTE[(slot - 1) % PALETTE.length], lastSeen: 0 };
       changed = true;
     }
     if (p.name !== name) { p.name = name; changed = true; }
@@ -368,12 +362,9 @@
       <tr>
         <td><span class="dot" style="background:${esc(p.color)}"></span> <span class="slot">#${p.slot}</span></td>
         <td class="${isOnline(p) ? '' : 'offline-name'}">${esc(p.name)}${game.excluded.includes(p.id) ? ' <span class="muted">(out)</span>' : ''}</td>
-        <td class="score">${p.score}</td>
         <td><div class="acts">
           <button class="small" data-act="voice" data-id="${esc(p.id)}" title="Upload a WAV or MP3 buzzer sound for this player">${voices.hasSlug(voiceOf(p)) ? 'Sound ✓' : voices.pendingSlug(voiceOf(p)) ? 'Sound…' : 'Add sound'}</button>
           <button class="small" data-act="say" data-id="${esc(p.id)}" aria-label="Preview name"${voices.hasSlug(voiceOf(p)) ? '' : ' disabled'}>▶</button>
-          <button class="small" data-act="minus" data-id="${esc(p.id)}" aria-label="Subtract points">−</button>
-          <button class="small" data-act="plus" data-id="${esc(p.id)}" aria-label="Add points">+</button>
           <button class="small" data-act="kick" data-id="${esc(p.id)}" aria-label="Remove player">✕</button>
         </div></td>
       </tr>`).join('') || '<tr><td class="muted">Nobody yet. Scan the code to join.</td></tr>';
@@ -432,9 +423,6 @@
     $('displayLink').href = BZ.pageUrl('display.html', room);
     $('roomInput').value = room;
     $('brokerInput').value = BZ.brokerUrl();
-    $('question').value = game.question;
-    $('points').value = settings.points;
-    $('penalty').value = settings.penalty;
     $('mode').value = settings.mode;
     $('window').value = settings.window;
 
@@ -445,7 +433,7 @@
     $('btnLock').onclick = lockClear;
     $('btnNewQuestion').onclick = newQuestion;
 
-    for (const key of ['points', 'penalty', 'mode', 'window']) {
+    for (const key of ['mode', 'window']) {
       $(key).onchange = () => {
         settings[key] = key === 'mode' ? $(key).value : Number($(key).value);
         store.set('hostSettings', settings);
@@ -454,22 +442,14 @@
     $('window').parentElement.classList.toggle('hidden', settings.mode !== 'fair');
     $('mode').addEventListener('change', () => $('window').parentElement.classList.toggle('hidden', settings.mode !== 'fair'));
 
-    const pushQuestion = () => { game.question = $('question').value.trim().slice(0, 300); publish(); };
-    $('question').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); pushQuestion(); $('question').blur(); }
-    });
-    $('question').addEventListener('blur', pushQuestion);
 
     $('players').onclick = (e) => {
       const b = e.target.closest('button');
       if (!b) return;
       const p = game.players[b.dataset.id];
       if (!p) return;
-      const pts = Number(settings.points) || 1;
       if (b.dataset.act === 'voice') { pickVoice(p); return; }
       if (b.dataset.act === 'say') { preview(voiceOf(p), p.name); return; }
-      if (b.dataset.act === 'plus') p.score += pts;
-      if (b.dataset.act === 'minus') p.score -= pts;
       if (b.dataset.act === 'kick') {
         if (!confirm(`Remove ${p.name}? They will not be able to rejoin from that phone this game.`)) return;
         delete game.players[p.id];
@@ -477,11 +457,6 @@
         game.queue = game.queue.filter((q) => q.id !== p.id);
         if (game.winner === p.id) { game.winner = null; game.phase = 'locked'; }
       }
-      publish();
-    };
-    $('btnResetScores').onclick = () => {
-      if (!confirm('Set every score to 0?')) return;
-      Object.values(game.players).forEach((p) => { p.score = 0; });
       publish();
     };
     $('btnRemoveOffline').onclick = () => {

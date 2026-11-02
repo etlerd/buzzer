@@ -53,7 +53,6 @@
       stage.className = 'stage';
       $('phase').textContent = 'Waiting for host';
       $('winner').textContent = '';
-      $('question').textContent = '';
       $('board').innerHTML = '';
       return;
     }
@@ -95,14 +94,11 @@
       $('phase').textContent = 'Get ready';
       $('winner').textContent = '';
     }
-    $('question').textContent = s.question || '';
-
-    const ranked = [...(s.players || [])].sort((a, b) => b.score - a.score || a.slot - b.slot);
-    $('board').innerHTML = ranked.map((p) => `
+    const list = [...(s.players || [])].sort((a, b) => a.slot - b.slot);
+    $('board').innerHTML = list.map((p) => `
       <li style="${p.online ? '' : 'opacity:.4'}">
         <span class="dot" style="background:${esc(p.color)}"></span>
         <span class="n">${esc(p.name)}</span>
-        <span class="score">${p.score}</span>
       </li>`).join('');
   }
 

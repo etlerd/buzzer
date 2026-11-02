@@ -5,8 +5,8 @@ Phones are the buzzers. Runs on GitHub Pages; no hardware, server or accounts ne
 | Page | Who uses it |
 |---|---|
 | `play.html` | **Players**, on their phones: a big buzzer button |
-| `admin.html` | **Admin** (the host): opens and locks buzzers, judges answers, keeps score, shows the join QR code, uploads name recordings |
-| `display.html` | **Studio display**, on a TV or the recording computer: who buzzed in, question, scoreboard. **Plays all sounds**, including recorded names |
+| `admin.html` | **Admin** (the host): opens and locks buzzers, judges answers, shows the join QR code, uploads buzzer sounds |
+| `display.html` | **Studio display**, on a TV or the recording computer: who buzzed in and who is playing. **Plays all sounds**, including each player's buzzer sound |
 | `index.html` | Landing page linking the three |
 
 ## Set up GitHub Pages
@@ -25,11 +25,13 @@ Phones are the buzzers. Runs on GitHub Pages; no hardware, server or accounts ne
 | Key | Action |
 |---|---|
 | Space | Open buzzers |
-| C | Correct: add points, lock |
-| W | Wrong: subtract penalty, lock that player out, reopen for everyone else |
+| C | Correct: green flash and sound, lock |
+| W | Wrong: red flash and sound, lock that player out, reopen for everyone else |
 | N | Wrong: lock that player out, hand the question to whoever buzzed next |
+
+Scoring is not part of this system; keep score however your game does.
 | L | Lock and clear |
-| Q | New question: clears lock-outs and the question text |
+| Q | Next question: clears lock-outs |
 
 Phones that press **before** the buzzers open get a 1-second "TOO SOON" lockout.
 
@@ -60,7 +62,7 @@ The admin page trims silence from both ends, evens out the volume, keeps at most
 
 ## Updating the site
 
-Script and stylesheet links carry a version tag (`?v=20261102e`). Change it in all four HTML files whenever a `.js` or `.css` file changes; otherwise browsers can mix a new page with old cached code for up to 10 minutes (GitHub Pages' cache time).
+Script and stylesheet links carry a version tag (`?v=20261102f`). Change it in all four HTML files whenever a `.js` or `.css` file changes; otherwise browsers can mix a new page with old cached code for up to 10 minutes (GitHub Pages' cache time).
 
 ## Message layout (for reference)
 

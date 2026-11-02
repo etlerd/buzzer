@@ -152,7 +152,6 @@
   function render() {
     if ($('game').classList.contains('hidden')) return;
     const mine = me();
-    $('score').textContent = mine ? `${mine.score} pts` : '';
 
     if (!client || !client.connected) { setButton('locked', 'WAIT'); setInfo('Connecting…'); return; }
     if (!state) { setButton('locked', 'WAIT'); setInfo(`Waiting for host to open room <strong class="code">${esc(room)}</strong>`); return; }
@@ -185,7 +184,7 @@
     } else if (excluded) {
       setInfo('Locked out for this question');
     } else {
-      setInfo(state.question ? esc(state.question) : 'Get ready…');
+      setInfo('Get ready…');
     }
     if (penalty) setButton('penalty', 'TOO SOON');
     else setButton(excluded ? 'out' : 'locked', 'WAIT');
