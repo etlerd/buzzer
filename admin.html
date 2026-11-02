@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Buzzer Admin</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="host-top">
+    <div>
+      <h1>Admin</h1>
+      <div class="row">
+        <span class="muted">Room</span>
+        <strong class="code" id="roomCode" style="font-size:1.4rem;color:var(--accent)">-----</strong>
+        <span class="status" id="status">Connecting…</span>
+      </div>
+    </div>
+    <div class="row">
+      <a href="#" id="displayLink" target="_blank" rel="noopener"><button>Open studio display</button></a>
+    </div>
+  </div>
+
+  <div class="host-grid">
+    <main class="stack">
+      <section class="panel">
+        <div class="big-state" id="bigState">
+          <div class="label" id="phaseLabel">Locked</div>
+          <div class="value" id="phaseValue">Waiting</div>
+        </div>
+        <div class="controls">
+          <button class="armed" id="btnArm">Open buzzers<span class="kbd">Space</span></button>
+          <button class="ok" id="btnCorrect">Correct<span class="kbd">C</span></button>
+          <button class="bad" id="btnWrongReopen">Wrong → reopen<span class="kbd">W</span></button>
+          <button class="bad" id="btnWrongNext">Wrong → next in line<span class="kbd">N</span></button>
+          <button id="btnLock">Lock / clear<span class="kbd">L</span></button>
+          <button id="btnNewQuestion">New question<span class="kbd">Q</span></button>
+        </div>
+        <ul class="queue" id="queue"></ul>
+      </section>
+
+      <section class="panel stack">
+        <div>
+          <label for="question">Question shown on studio display (optional)</label>
+          <textarea id="question" rows="2" placeholder="Type the question, press Enter to publish"></textarea>
+        </div>
+        <div class="row">
+          <div class="grow">
+            <label for="points">Points for correct</label>
+            <input id="points" type="number" value="10" step="1">
+          </div>
+          <div class="grow">
+            <label for="penalty">Points lost for wrong</label>
+            <input id="penalty" type="number" value="0" step="1">
+          </div>
+          <div class="grow">
+            <label for="mode">Winner decided by</label>
+            <select id="mode">
+              <option value="fair">Reaction time (latency-fair)</option>
+              <option value="arrival">First to arrive at host</option>
+            </select>
+          </div>
+          <div class="grow">
+            <label for="window">Collect window (ms, fair mode)</label>
+            <input id="window" type="number" value="400" min="0" step="50">
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <aside class="stack">
+      <section class="panel">
+        <h3>Join</h3>
+        <div class="qr" id="qr"></div>
+        <p class="join-link"><a id="joinLink" href="#" target="_blank" rel="noopener"></a></p>
+      </section>
+
+      <section class="panel">
+        <div class="row" style="justify-content:space-between">
+          <h3>Players</h3>
+          <span class="muted" id="playerCount">0</span>
+        </div>
+        <table class="players"><tbody id="players"></tbody></table>
+        <div class="row" style="margin-top:12px">
+          <button class="small" id="btnResetScores">Reset scores</button>
+          <button class="small" id="btnRemoveOffline">Remove offline</button>
+        </div>
+        <p class="muted" id="voiceStatus" style="font-size:.85rem;margin:12px 0 0">Add voice: upload a WAV or MP3 of each player's name. The display page plays it when they buzz in.</p>
+      </section>
+
+      <section class="panel">
+        <details>
+          <summary>Room &amp; broker settings</summary>
+          <div class="stack" style="margin-top:12px">
+            <div>
+              <label for="roomInput">Room code (fixed code = no IoT reflash)</label>
+              <div class="row">
+                <input id="roomInput" class="code grow" maxlength="12">
+                <button id="btnSetRoom">Use</button>
+              </div>
+            </div>
+            <button id="btnNewRoom">Generate new room code</button>
+            <div>
+              <label for="brokerInput">MQTT WebSocket broker URL</label>
+              <input id="brokerInput" placeholder="wss://broker.hivemq.com:8884/mqtt">
+            </div>
+            <button id="btnSaveBroker">Save broker &amp; reload</button>
+            <p class="muted" style="font-size:.85rem">The default public broker needs no account but anyone who guesses the room code can see or send messages. See README for a private broker.</p>
+          </div>
+        </details>
+      </section>
+    </aside>
+  </div>
+</div>
+<input type="file" id="voiceFile" accept="audio/*,.mp3,.wav,.m4a" class="hidden">
+<script src="js/vendor/mqtt.min.js"></script>
+<script src="js/vendor/qrcode.js"></script>
+<script src="js/common.js"></script>
+<script src="js/voice.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>

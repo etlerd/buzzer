@@ -1,6 +1,6 @@
-// Turns any recording the browser can decode (iPhone voice memo .m4a, .mp3,
-// .wav, …) into what the hub plays: 16-bit mono WAV at 22050 Hz, trimmed and
-// level-normalized. Works on plain http:// (no microphone permission needed).
+// Turns any recording the browser can decode (.mp3, .wav, iPhone .m4a, …)
+// into a small 16-bit mono WAV at 22050 Hz, trimmed and level-normalized,
+// so every name plays at the same volume.
 window.Voice = (function () {
   const RATE = 22050;
   const MAX_SECONDS = 4;
@@ -73,21 +73,5 @@ window.Voice = (function () {
     return encodeWav(trimAndNormalize(mono));
   }
 
-  async function upload(name, file) {
-    const slug = voiceSlug(name);
-    if (!slug) throw new Error('Name needs at least one letter A–Z or digit for its voice file.');
-    const wav = await convert(file);
-    const fd = new FormData();
-    fd.append('file', wav, slug + '.wav');
-    const r = await fetch('/api/upload?path=' + encodeURIComponent('/voice/' + slug + '.wav'), { method: 'POST', body: fd });
-    if (!r.ok) throw new Error('Upload failed: ' + (await r.text()));
-    return slug;
-  }
-
-  async function remove(name) {
-    const slug = voiceSlug(name);
-    await fetch('/api/delete?path=' + encodeURIComponent('/voice/' + slug + '.wav'), { method: 'POST' });
-  }
-
-  return { convert, upload, remove, encodeWav, trimAndNormalize };
+  return { convert, encodeWav, trimAndNormalize };
 })();
