@@ -32,7 +32,17 @@
   });
   let game = Object.assign(blank(), store.get('game.' + room, {}));
   if (game.phase === 'armed') game.phase = 'locked'; // never resume mid-collection after reload
-  const settings = Object.assign({ mode: 'fair', window: 400 }, store.get('hostSettings', {}));
+  const settings = Object.assign({ mode: 'arrival', window: 400 }, store.get('hostSettings', {}));
+  const MODE_TEXT = {
+    arrival: {
+      name: 'First to arrive',
+      help: 'The first buzz to reach this page wins, instantly. Use when players react to your voice: you say "Go!", or they buzz while you read the question. On mixed connections, faster phones win very close calls.',
+    },
+    fair: {
+      name: 'Reaction time',
+      help: 'Each phone times from when its own screen lights up to the tap; the fastest time wins after a short wait. Use when you open the buzzers silently and players race their screens. Fair even on slow connections; don\'t say "Go!" in this mode.',
+    },
+  };
 
   let client = null;
   let collectTimer = null;
@@ -466,8 +476,14 @@
         store.set('hostSettings', settings);
       };
     }
-    $('window').parentElement.classList.toggle('hidden', settings.mode !== 'fair');
-    $('mode').addEventListener('change', () => $('window').parentElement.classList.toggle('hidden', settings.mode !== 'fair'));
+    const showMode = () => {
+      const m = MODE_TEXT[settings.mode] || MODE_TEXT.arrival;
+      $('modeHelp').textContent = m.help;
+      $('modeSummary').textContent = `· ${m.name}`;
+      $('window').parentElement.classList.toggle('hidden', settings.mode !== 'fair');
+    };
+    showMode();
+    $('mode').addEventListener('change', showMode);
 
 
     $('players').onclick = (e) => {

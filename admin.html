@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b0d1a">
   <title>Buzzer Admin</title>
-  <link rel="stylesheet" href="css/style.css?v=20261102h">
+  <link rel="stylesheet" href="css/style.css?v=20261103b">
 </head>
 <body class="admin-page">
 <div class="wrap">
@@ -80,14 +80,15 @@
 
       <section class="panel">
         <details>
-          <summary>Settings</summary>
+          <summary>Settings <span class="summary-note" id="modeSummary"></span></summary>
           <div class="stack" style="margin-top:12px">
             <div>
-              <label for="mode">Winner decided by</label>
+              <label for="mode">Buzz-in mode</label>
               <select id="mode">
-                <option value="fair">Reaction time (fair on slow connections)</option>
                 <option value="arrival">First to arrive</option>
+                <option value="fair">Reaction time</option>
               </select>
+              <p class="mode-help" id="modeHelp"></p>
             </div>
             <div>
               <label for="window">Wait for other buzzes (ms, reaction-time mode)</label>
@@ -115,10 +116,10 @@
 </div>
 <input type="file" id="voiceFile" accept="audio/*,.mp3,.wav,.m4a" class="hidden">
 <input type="file" id="libraryFiles" accept="audio/*,.mp3,.wav,.m4a" multiple class="hidden">
-<script src="js/vendor/mqtt.min.js?v=20261102h"></script>
-<script src="js/vendor/qrcode.js?v=20261102h"></script>
-<script src="js/common.js?v=20261102h"></script>
-<script src="js/voice.js?v=20261102h"></script>
-<script src="js/admin.js?v=20261102h"></script>
+<script src="js/vendor/mqtt.min.js?v=20261103b"></script>
+<script src="js/vendor/qrcode.js?v=20261103b"></script>
+<script src="js/common.js?v=20261103b"></script>
+<script src="js/voice.js?v=20261103b"></script>
+<script src="js/admin.js?v=20261103b"></script>
 </body>
 </html>

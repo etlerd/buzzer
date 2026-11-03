@@ -121,6 +121,8 @@ label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: .
 .notice.error { background: color-mix(in srgb, var(--bad) 20%, var(--panel)); border-color: var(--bad); }
 .struck { opacity: .45; text-decoration: line-through; }
 .help p { margin: .5rem 0 0; font-size: .85rem; color: var(--muted); }
+.mode-help { margin: .4rem 0 0; font-size: .85rem; color: var(--muted); }
+.summary-note { font-size: .85rem; }
 .join-hint { text-align: center; margin: 10px 0 0; }
 .join-panel .qr { margin-top: 10px; max-width: 200px; }
 /* phone: game controls pinned to the bottom of the screen, within thumb reach */
@@ -190,6 +192,7 @@ details summary { cursor: pointer; color: var(--muted); }
 }
 .buzzer[data-mode="won"] { background: radial-gradient(circle at 35% 30%, #a6f5b8, var(--ok) 55%, #0d6b27); box-shadow: 0 12px 0 #07391a, 0 0 60px rgba(52,199,89,.7); }
 .buzzer[data-mode="queued"] { background: radial-gradient(circle at 35% 30%, #ffe680, #d4a600 60%, #7a5f00); box-shadow: 0 12px 0 #3d3000; }
+.buzzer[data-mode="line"] { background: radial-gradient(circle at 35% 30%, #a8964a, #6b5a14 60%, #3a300a); box-shadow: 0 12px 0 #241d05; font-size: clamp(1.3rem, 7vw, 2.2rem); }
 .buzzer[data-mode="out"], .buzzer[data-mode="penalty"] { background: radial-gradient(circle at 35% 30%, #555, #2a2a2a 60%, #151515); color: #888; }
 @keyframes pulse { 50% { box-shadow: 0 12px 0 #6b0014, 0 0 100px rgba(255,45,85,1); } }
 @media (prefers-reduced-motion: reduce) { .buzzer[data-mode="armed"] { animation: none; } }

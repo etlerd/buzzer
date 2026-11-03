@@ -123,8 +123,10 @@
     if ((state.excluded || []).includes(myId)) return;
     const now = performance.now();
 
-    if (state.phase === 'armed') {
-      if (buzzedArm === state.armId || now < penaltyUntil) return;
+    const inLine = (state.queue || []).some((q) => q.id === myId);
+    // armed: race to buzz. buzzed: someone is answering; tapping joins the line behind them.
+    if (state.phase === 'armed' || (state.phase === 'buzzed' && state.winner !== myId && !inLine)) {
+      if (buzzedArm === state.armId || (state.phase === 'armed' && now < penaltyUntil)) return;
       buzzedArm = state.armId;
       const rt = Math.round(now - armedAt);
       client.publish(topic(room, 'buzz'), JSON.stringify({ id: myId, armId: state.armId, rt }), { qos: 1 });
@@ -174,7 +176,9 @@
     if (state.phase === 'buzzed') {
       if (state.winner === myId) { setButton('won', 'YOU!'); setInfo('<strong>You buzzed in first</strong>Answer now'); }
       else if (qpos >= 0 && !excluded) { setButton('queued', `#${qpos + 1}`); setInfo(`<strong>${esc(winner ? winner.name : '?')}</strong>buzzed first. You are #${qpos + 1} in line`); }
-      else { setButton('out', 'WAIT'); setInfo(`<strong>${esc(winner ? winner.name : '?')}</strong>buzzed in`); }
+      else if (excluded) { setButton('out', 'OUT'); setInfo(`<strong>${esc(winner ? winner.name : '?')}</strong>buzzed in`); }
+      else if (buzzedArm === state.armId) { setButton('queued', '…'); setInfo(`<strong>${esc(winner ? winner.name : '?')}</strong>buzzed first. Getting you in line…`); }
+      else { setButton('line', 'GET IN LINE'); setInfo(`<strong>${esc(winner ? winner.name : '?')}</strong>buzzed first. Tap to be next if they're wrong`); }
       return;
     }
     // locked

@@ -33,7 +33,7 @@ Scoring is not part of this system; keep score however your game does.
 | L | Lock and clear |
 | Q | Next question: clears lock-outs |
 
-Phones that press **before** the buzzers open get a 1-second "TOO SOON" lockout.
+Phones that press **before** the buzzers open get a 1-second "TOO SOON" lockout. Once someone has buzzed in, the other phones show **GET IN LINE**: tapping it puts that player in line for **Wrong · pass to…**.
 
 ## Buzzer sounds and audio
 
@@ -47,10 +47,12 @@ The admin page trims silence from both ends, evens out the volume, keeps at most
 
 **Getting the sound into your recording:** sounds come out of whatever computer runs the display page. Run the display on the recording computer and route its audio into the recording, or connect that computer's headphone output to a **line** input on your audio interface.
 
-## Who wins: two modes (admin settings)
+## Buzz-in modes (admin → Settings)
 
-- **Reaction time (default).** Each phone measures the time from when *it* saw the buzzers open to the tap. Network delay does not count against anyone. The admin waits a short window (default 400 ms) after the first buzz to collect the others. Weakness: a phone running modified code could fake its time.
-- **First to arrive.** Whoever's buzz reaches the admin first wins. Cannot be faked, but phones on slower connections lose close calls.
+The question is what players react to.
+
+- **First to arrive (default).** The first buzz to reach the admin page wins, instantly. Use when players react to your voice: you say "Go!", or they buzz while you read the question. On mixed connections (Wi-Fi vs mobile data), faster phones win very close calls, typically by 30–150 ms.
+- **Reaction time.** Each phone times from when its own screen lights up to the tap; the fastest time wins after a short wait (default 400 ms, adjustable). Use when you open the buzzers silently and players race their screens, e.g. Jeopardy style: read the whole question, then open. Fair even on slow connections. Don't say "Go!" in this mode: a phone that gets the signal late would start its clock late and gain a head start. A tampered phone could fake its time.
 
 ## Limits
 
@@ -62,7 +64,7 @@ The admin page trims silence from both ends, evens out the volume, keeps at most
 
 ## Updating the site
 
-Script and stylesheet links carry a version tag (`?v=20261102h`). Change it in all four HTML files whenever a `.js` or `.css` file changes; otherwise browsers can mix a new page with old cached code for up to 10 minutes (GitHub Pages' cache time).
+Script and stylesheet links carry a version tag (`?v=20261103b`). Change it in all four HTML files whenever a `.js` or `.css` file changes; otherwise browsers can mix a new page with old cached code for up to 10 minutes (GitHub Pages' cache time).
 
 ## Other games
 
