@@ -84,7 +84,7 @@
     });
     client.on('message', (t, payload) => {
       if (!t.endsWith('/state')) return;
-      onState(BZ.parse(payload));
+      onState(BZ.cleanState(BZ.parse(payload)));
     });
     helloTimer = setInterval(hello, HELLO_EVERY_MS);
   }

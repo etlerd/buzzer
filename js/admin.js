@@ -403,6 +403,15 @@
 
   // ---------- wiring ----------
   function initUi() {
+    $('btnDeleteSounds').onclick = () => {
+      const n = Object.keys(voices.manifests).length;
+      if (!n) { $('libraryStatus').textContent = 'No sounds to delete.'; return; }
+      if (!confirm(`Delete all ${n} buzzer sound${n === 1 ? '' : 's'} for room ${room}? This cannot be undone.`)) return;
+      for (const slug of Object.keys(voices.manifests)) clearVoice(slug);
+      for (const p of Object.values(game.players)) p.voice = null;
+      $('libraryStatus').textContent = `Deleted ${n} sound${n === 1 ? '' : 's'}.`;
+      publish();
+    };
     $('btnAddRecordings').onclick = () => { $('libraryFiles').value = ''; $('libraryFiles').click(); };
     $('libraryFiles').addEventListener('change', () => {
       if ($('libraryFiles').files.length) addRecordings($('libraryFiles').files);

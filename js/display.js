@@ -42,8 +42,10 @@
   function play(name) { if (soundOn) sounds[name](); }
 
   // ---------- recorded names ----------
+  // setup check: how many buzzer sounds this display has received
   const voices = BZ.voiceStore(room, () => {
-    document.body.dataset.voices = voices.ready().join(' ');  // for checking setup
+    const n = voices.ready().length;
+    $('soundCount').textContent = n ? `${n} buzzer sound${n === 1 ? '' : 's'} loaded` : '';
   });
   // p.voice is the buzzer sound the admin matched to this player (by name, or assigned by hand)
   function playVoice(slug, delayMs) { if (soundOn && slug) voices.playSlug(slug, delayMs).catch((e) => console.warn('name playback blocked', e)); }
@@ -116,11 +118,10 @@
   const client = BZ.connect({
     role: 'display',
     onStatus: (s) => BZ.setStatusBadge($('status'), s),
-    onConnect: () => client.subscribe([topic(room, 'state'), topic(room, 'say'), topic(room, 'voice/#')], { qos: 1 }),
+    onConnect: () => client.subscribe([topic(room, 'state'), topic(room, 'voice/#')], { qos: 1 }),
   });
   client.on('message', (t, payload) => {
-    if (t.endsWith('/state')) render(BZ.parse(payload));
-    else if (t.endsWith('/say')) { const m = BZ.parse(payload); if (m) playVoice(m.slug, 0); }
+    if (t.endsWith('/state')) render(BZ.cleanState(BZ.parse(payload)));
     else voices.handle(t, payload);
   });
 })();

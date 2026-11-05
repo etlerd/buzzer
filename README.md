@@ -43,7 +43,7 @@ Each player can have their own buzzer sound (their name, a catchphrase, a sound 
 
 **After players join:** **Add sound** next to a player uploads a sound for that player directly.
 
-The admin page trims silence from both ends, evens out the volume, keeps at most 4 seconds, and stores each sound on the message server under the room code. Use the same room on show day: the admin page remembers its room, or set a fixed code under *Room & broker settings*. **▶** previews a sound on the admin device. On "wrong → next in line" the display plays the next person's sound. A display opened later still receives every sound.
+The admin page trims silence from both ends, evens out the volume, keeps at most 4 seconds, and stores each sound on the message server under the room code, where it is deleted automatically after 14 days (**Delete all** removes them sooner). Use the same room on show day: the admin page remembers its room, or set a fixed code under *Settings*. **▶** previews a sound on the admin device. On "wrong → next in line" the display plays the next person's sound. A display opened later still receives every sound.
 
 **Getting the sound into your recording:** sounds come out of whatever computer runs the display page. Run the display on the recording computer and route its audio into the recording, or connect that computer's headphone output to a **line** input on your audio interface.
 
@@ -57,14 +57,14 @@ The question is what players react to.
 ## Limits
 
 - **Venue networks.** All pages talk through a free public message broker (`broker.hivemq.com`, WebSocket port 8884). Managed Wi-Fi often blocks that port. Test from the venue Wi-Fi before the show. If it is blocked, players switch their phones to **mobile data**, and the admin and display computers use a phone hotspot.
-- **Public broker.** No account is needed, but anyone who guesses the room code can see the game, send fake buzzes, or download the name recordings. Fine for a party. For more privacy, set up a free private broker (HiveMQ Cloud or EMQX) and enter its WebSocket address under the admin page's *Room & broker settings*.
+- **Public broker.** No account is needed, but anyone on the public broker can find the room, see the game, send fake buzzes, or download the buzzer sounds. Fine for a party. Stored game state and sounds expire after 14 days (needs an MQTT 5 broker, which the default is). For more privacy, set up a free private broker (HiveMQ Cloud or EMQX) and enter its WebSocket address under the admin page's *Settings*.
 - **One admin.** Run only one admin page per room; two would overwrite each other. Scores survive an admin page reload.
 - **16 players** per room.
 - **iPhones** don't vibrate on buzz (Safari has no vibration support).
 
 ## Updating the site
 
-Script and stylesheet links carry a version tag (`?v=20261103b`). Change it in all four HTML files whenever a `.js` or `.css` file changes; otherwise browsers can mix a new page with old cached code for up to 10 minutes (GitHub Pages' cache time).
+Script and stylesheet links carry a version tag (`?v=20261105a`). Change it in all four HTML files whenever a `.js` or `.css` file changes; otherwise browsers can mix a new page with old cached code for up to 10 minutes (GitHub Pages' cache time). The two libraries in `js/vendor/` carry their own tag (`?v=mqtt-5.16.1`, `?v=qrcode-2.0.4`): leave those alone unless the library itself is replaced, so browsers keep their cached copy across updates.
 
 ## Other games
 
@@ -81,6 +81,5 @@ Topics under `gsbuzz/v1/<ROOM>/`:
 | `buzz` | player → admin | `{id, armId, rt}` |
 | `voice/<name>` (retained) | admin → display | buzzer-sound manifest `{id, n, bytes, name}` |
 | `voice/<name>/<id>/<i>` (retained) | admin → display | WAV data, 32 KB chunks |
-| `say` | admin → display | play a buzzer sound now |
 
 The ESP32 hub and seat-pod version is in git history at commit `767cdd8`.

@@ -43,7 +43,7 @@ Keep transport details inside `common.js` (`BZ.connect`, `BZ.topic`) so a second
 
 ## Message contract (keep stable)
 
-Topics under `gsbuzz/v1/<ROOM>/`. Breaking changes go to `gsbuzz/v2/`; adding fields within v1 is fine, and readers must ignore fields they don't know.
+Topics under `gsbuzz/v1/<ROOM>/`. Breaking changes go to `gsbuzz/v2/`; adding fields within v1 is fine, and readers must ignore fields they don't know. Pages connect with MQTT 5 (falling back to 3.1.1) and retained messages carry a 14-day expiry. Readers validate input: colors must be `#RRGGBB`; sound manifests are limited to 1 MB and 40 chunks.
 
 | Topic | Retained | From → to | Payload |
 |---|---|---|---|
@@ -52,7 +52,6 @@ Topics under `gsbuzz/v1/<ROOM>/`. Breaking changes go to `gsbuzz/v2/`; adding fi
 | `buzz` | no | player → referee | `{id, armId, rt}`: `rt` = ms from when that phone saw `armed` to the tap |
 | `voice/<slug>` | yes | admin → display | `{id, n, bytes, name}`: buzzer-sound manifest; empty payload = deleted |
 | `voice/<slug>/<id>/<i>` | yes | admin → display | WAV bytes, chunk `i` of `n` (32 KB each) |
-| `say` | no | admin → display | `{slug}`: play that sound now |
 
 Meanings a plugin can rely on:
 
