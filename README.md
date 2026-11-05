@@ -64,7 +64,7 @@ The question is what players react to.
 
 ## Updating the site
 
-Script and stylesheet links carry a version tag (`?v=20261105a`). Change it in all four HTML files whenever a `.js` or `.css` file changes; otherwise browsers can mix a new page with old cached code for up to 10 minutes (GitHub Pages' cache time). The two libraries in `js/vendor/` carry their own tag (`?v=mqtt-5.16.1`, `?v=qrcode-2.0.4`): leave those alone unless the library itself is replaced, so browsers keep their cached copy across updates.
+Script and stylesheet links carry a version tag, `?v=VERSION_DATE` (e.g. `?v=1.0.0_2026-11-05`). It is also what the small ⓘ button in each page's corner shows, so it is the only place to set the version and release date. Change it in all four HTML files whenever a `.js` or `.css` file changes (e.g. `sed -i 's/?v=1.0.0_2026-11-05/?v=1.0.1_2026-11-20/g' *.html`); otherwise browsers can mix a new page with old cached code for up to 10 minutes (GitHub Pages' cache time). The two libraries in `js/vendor/` carry their own tag (`?v=mqtt-5.16.1`, `?v=qrcode-2.0.4`): leave those alone unless the library itself is replaced, so browsers keep their cached copy across updates.
 
 ## Other games
 
