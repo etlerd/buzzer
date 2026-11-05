@@ -48,7 +48,7 @@ Topics under `gsbuzz/v1/<ROOM>/`. Breaking changes go to `gsbuzz/v2/`; adding fi
 | Topic | Retained | From → to | Payload |
 |---|---|---|---|
 | `state` | yes | referee → all | `{v:1, room, phase:"locked"\|"armed"\|"buzzed", armId, winner:id\|null, queue:[{id, rt}], excluded:[id], kicked:[id], result:{id, ok, n}\|null, players:[{id, name, slot, color, online, voice}], ts}` |
-| `hello` | no | player → referee | `{id, name}` every 4 s; `{id, bye:true}` on leave (also the connection's last will) |
+| `hello` | no | player → referee | `{id, name}` every 4 s; `{id, bye:true}` = connection lost (the connection's last will): mark offline; `{id, bye:true, left:true}` = tapped Leave room: remove |
 | `buzz` | no | player → referee | `{id, armId, rt}`: `rt` = ms from when that phone saw `armed` to the tap |
 | `voice/<slug>` | yes | admin → display | `{id, n, bytes, name}`: buzzer-sound manifest; empty payload = deleted |
 | `voice/<slug>/<id>/<i>` | yes | admin → display | WAV bytes, chunk `i` of `n` (32 KB each) |

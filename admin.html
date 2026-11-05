@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b0d1a">
   <title>Buzzer Admin</title>
-  <link rel="stylesheet" href="css/style.css?v=1.0.0_2026-11-05">
+  <link rel="stylesheet" href="css/style.css?v=1.1.0_2026-11-05">
 </head>
 <body class="admin-page">
 <div class="wrap">
@@ -100,6 +100,17 @@
               <input id="window" type="number" value="400" min="0" step="50">
             </div>
             <div>
+              <label for="removeAfter">Remove players who stay offline for</label>
+              <select id="removeAfter">
+                <option value="1">1 minute</option>
+                <option value="5">5 minutes</option>
+                <option value="15">15 minutes</option>
+                <option value="60">1 hour</option>
+                <option value="0">Never (use Remove offline)</option>
+              </select>
+              <p class="mode-help">A dropped connection keeps the player's seat, color, sound and place in line until then. Players who tap Leave room are removed at once.</p>
+            </div>
+            <div>
               <label for="roomInput">Room code (keep it fixed so buzzer sounds stay loaded)</label>
               <div class="row">
                 <input id="roomInput" class="code grow" maxlength="12">
@@ -123,9 +134,9 @@
 <input type="file" id="libraryFiles" accept="audio/*,.mp3,.wav,.m4a" multiple class="hidden">
 <script src="js/vendor/mqtt.min.js?v=mqtt-5.16.1"></script>
 <script src="js/vendor/qrcode.min.js?v=qrcode-2.0.4"></script>
-<script src="js/common.js?v=1.0.0_2026-11-05"></script>
-<script src="js/version.js?v=1.0.0_2026-11-05"></script>
-<script src="js/voice.js?v=1.0.0_2026-11-05"></script>
-<script src="js/admin.js?v=1.0.0_2026-11-05"></script>
+<script src="js/common.js?v=1.1.0_2026-11-05"></script>
+<script src="js/version.js?v=1.1.0_2026-11-05"></script>
+<script src="js/voice.js?v=1.1.0_2026-11-05"></script>
+<script src="js/admin.js?v=1.1.0_2026-11-05"></script>
 </body>
 </html>

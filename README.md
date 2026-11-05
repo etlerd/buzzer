@@ -47,6 +47,13 @@ The admin page trims silence from both ends, evens out the volume, keeps at most
 
 **Getting the sound into your recording:** sounds come out of whatever computer runs the display page. Run the display on the recording computer and route its audio into the recording, or connect that computer's headphone output to a **line** input on your audio interface.
 
+## When players disconnect
+
+- **Leave room** (asks first) removes the player at once; they can rejoin with the link.
+- **Closed tab or lost signal:** the player stays listed, greyed out as offline (within about 12 s), keeping their seat, color, buzzer sound and place in line. If they come back they continue as before. After 5 minutes offline they are removed automatically (Settings: 1, 5, 15 or 60 minutes, or never).
+- An offline player is flagged on the buzzed-in banner and in the line, and **Wrong · pass to…** skips them.
+- **Remove offline** (asks first, listing names) clears all offline players now. **✕** next to a player removes them and blocks that phone for the rest of the room.
+
 ## Buzz-in modes (admin → Settings)
 
 The question is what players react to.
@@ -64,7 +71,7 @@ The question is what players react to.
 
 ## Updating the site
 
-Script and stylesheet links carry a version tag, `?v=VERSION_DATE` (e.g. `?v=1.0.0_2026-11-05`). It is also what the small ⓘ button in each page's corner shows, so it is the only place to set the version and release date. Change it in all four HTML files whenever a `.js` or `.css` file changes (e.g. `sed -i 's/?v=1.0.0_2026-11-05/?v=1.0.1_2026-11-20/g' *.html`); otherwise browsers can mix a new page with old cached code for up to 10 minutes (GitHub Pages' cache time). The two libraries in `js/vendor/` carry their own tag (`?v=mqtt-5.16.1`, `?v=qrcode-2.0.4`): leave those alone unless the library itself is replaced, so browsers keep their cached copy across updates.
+Script and stylesheet links carry a version tag, `?v=VERSION_DATE` (e.g. `?v=1.1.0_2026-11-05`). It is also what the small ⓘ button in each page's corner shows, so it is the only place to set the version and release date. Change it in all four HTML files whenever a `.js` or `.css` file changes (e.g. `sed -i 's/?v=1.1.0_2026-11-05/?v=1.0.1_2026-11-20/g' *.html`); otherwise browsers can mix a new page with old cached code for up to 10 minutes (GitHub Pages' cache time). The two libraries in `js/vendor/` carry their own tag (`?v=mqtt-5.16.1`, `?v=qrcode-2.0.4`): leave those alone unless the library itself is replaced, so browsers keep their cached copy across updates.
 
 ## Other games
 

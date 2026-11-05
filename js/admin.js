@@ -32,7 +32,7 @@
   });
   let game = Object.assign(blank(), store.get('game.' + room, {}));
   if (game.phase === 'armed') game.phase = 'locked'; // never resume mid-collection after reload
-  const settings = Object.assign({ mode: 'arrival', window: 400 }, store.get('hostSettings', {}));
+  const settings = Object.assign({ mode: 'arrival', window: 400, removeAfter: 5 }, store.get('hostSettings', {}));
   const MODE_TEXT = {
     arrival: {
       name: 'First to arrive',
@@ -56,6 +56,24 @@
   if (!adminId) { adminId = BZ.newId(); store.set('adminId', adminId); }
 
   function isOnline(p) { return Date.now() - (p.lastSeen || 0) < OFFLINE_AFTER_MS; }
+  // ms since the player went offline (negative while online)
+  function offlineFor(p) { return Date.now() - (p.lastSeen || 0) - OFFLINE_AFTER_MS; }
+
+  // Take a player out of the game. kick: also refuse that phone for the rest of this room.
+  function removePlayer(id, kick) {
+    delete game.players[id];
+    if (kick && !game.kicked.includes(id)) game.kicked.push(id);
+    game.queue = game.queue.filter((q) => q.id !== id);
+    game.excluded = game.excluded.filter((x) => x !== id);
+    if (game.winner === id) { game.winner = null; game.phase = 'locked'; }
+    delete onlineCache[id];
+  }
+
+  // Next person in line who is still allowed and still connected.
+  function nextInLine() {
+    return game.queue.find((q) => q.id !== game.winner && !game.excluded.includes(q.id) &&
+      game.players[q.id] && isOnline(game.players[q.id]));
+  }
   function playerList() { return Object.values(game.players).sort((a, b) => a.slot - b.slot); }
   function nameOf(id) { return (game.players[id] && game.players[id].name) || '?'; }
 
@@ -137,7 +155,7 @@
     sounds.wrong();
 
     if (then === 'next') {
-      const next = game.queue.find((q) => !game.excluded.includes(q.id));
+      const next = nextInLine();
       if (next) {
         game.winner = next.id;
         game.phase = 'buzzed';
@@ -175,7 +193,11 @@
     if (game.kicked.includes(id)) return;
     let p = game.players[id];
     if (msg.bye) {
-      if (p) { p.lastSeen = 0; publish(); }
+      if (!p) return;
+      if (msg.left) removePlayer(id);                    // tapped Leave room: gone for good
+      else if (isOnline(p)) p.lastSeen = Date.now() - OFFLINE_AFTER_MS;  // connection dropped: offline from now
+      // (already offline: keep the original time, or a late notice from the broker would restart the removal clock)
+      publish();
       return;
     }
     const name = String(msg.name || '').replace(/\s+/g, ' ').trim().slice(0, 20);
@@ -368,10 +390,11 @@
     }
     $('phaseLabel').textContent = label;
     $('phaseValue').innerHTML = value;
+    if (game.phase === 'buzzed' && w && !isOnline(w)) sub = `${esc(w.name)} is offline`;
     $('phaseSub').innerHTML = sub;
 
     const buzzed = game.phase === 'buzzed' && !!game.winner;
-    const next = buzzed && game.queue.find((q) => q.id !== game.winner && !game.excluded.includes(q.id));
+    const next = buzzed && nextInLine();
     $('btnArm').disabled = game.phase === 'armed';
     $('btnCorrect').disabled = !buzzed;
     $('btnWrongReopen').disabled = !buzzed;
@@ -382,12 +405,14 @@
     $('queue').innerHTML = game.queue.map((q) => {
       const p = game.players[q.id];
       const out = game.excluded.includes(q.id);
-      return `<li class="${out ? 'struck' : ''}"><span><span class="dot" style="background:${esc(p ? p.color : '#888')}"></span> ${esc(nameOf(q.id))}</span><span class="muted">${Math.round(q.rt)} ms</span></li>`;
+      const gone = p && !isOnline(p) ? ' <span class="muted">· offline</span>' : '';
+      return `<li class="${out ? 'struck' : ''}"><span><span class="dot" style="background:${esc(p ? p.color : '#888')}"></span> ${esc(nameOf(q.id))}${gone}</span><span class="muted">${Math.round(q.rt)} ms</span></li>`;
     }).join('');
     $('queue').classList.toggle('hidden', !game.queue.length);
 
     renderLibrary();
     const list = playerList();
+    $('btnRemoveOffline').disabled = !list.some((p) => !isOnline(p));
     $('playerCount').textContent = `${list.filter(isOnline).length} online / ${list.length}`;
     $('players').innerHTML = list.map((p) => `
       <tr>
@@ -479,7 +504,8 @@
     $('btnLock').onclick = lockClear;
     $('btnNewQuestion').onclick = newQuestion;
 
-    for (const key of ['mode', 'window']) {
+    $('removeAfter').value = String(settings.removeAfter);
+    for (const key of ['mode', 'window', 'removeAfter']) {
       $(key).onchange = () => {
         settings[key] = key === 'mode' ? $(key).value : Number($(key).value);
         store.set('hostSettings', settings);
@@ -503,16 +529,17 @@
       if (b.dataset.act === 'voice') { pickVoice(p); return; }
       if (b.dataset.act === 'say') { preview(voiceOf(p), p.name); return; }
       if (b.dataset.act === 'kick') {
-        if (!confirm(`Remove ${p.name}? They will not be able to rejoin from that phone this game.`)) return;
-        delete game.players[p.id];
-        game.kicked.push(p.id);
-        game.queue = game.queue.filter((q) => q.id !== p.id);
-        if (game.winner === p.id) { game.winner = null; game.phase = 'locked'; }
+        if (!confirm(`Remove ${p.name}? They won't be able to rejoin from that phone in this room.`)) return;
+        removePlayer(p.id, true);
       }
       publish();
     };
     $('btnRemoveOffline').onclick = () => {
-      Object.values(game.players).filter((p) => !isOnline(p)).forEach((p) => delete game.players[p.id]);
+      const gone = playerList().filter((p) => !isOnline(p));
+      if (!gone.length) return;
+      const names = gone.map((p) => p.name).join(', ');
+      if (!confirm(`Remove ${gone.length} offline player${gone.length === 1 ? '' : 's'} (${names})? They can rejoin later.`)) return;
+      gone.forEach((p) => removePlayer(p.id));
       publish();
     };
 
@@ -583,10 +610,12 @@
     });
   }
 
-  // Re-publish when someone's online status flips.
+  // Re-publish when someone's online status flips; remove players offline too long.
   setInterval(() => {
     let changed = false;
+    const limitMs = Number(settings.removeAfter) * 60000;  // 0 = never
     for (const p of Object.values(game.players)) {
+      if (limitMs > 0 && offlineFor(p) > limitMs) { removePlayer(p.id); changed = true; continue; }
       const on = isOnline(p);
       if (onlineCache[p.id] !== on) { onlineCache[p.id] = on; changed = true; }
     }

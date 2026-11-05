@@ -66,7 +66,7 @@
 
   function start() {
     if (client) {
-      client.publish(topic(room, 'hello'), JSON.stringify({ id: myId, bye: true }));
+      client.publish(topic(room, 'hello'), JSON.stringify({ id: myId, bye: true, left: true }));  // switching rooms
       client.end(true);
     }
     clearInterval(helloTimer);
@@ -198,8 +198,10 @@
   // ---------- misc ----------
   $('btnRename').onclick = showForm;
   $('btnLeave').onclick = () => {
+    if (!confirm(`Leave room ${room}? You'll need to rejoin to keep playing.`)) return;
     if (client) {
-      client.publish(topic(room, 'hello'), JSON.stringify({ id: myId, bye: true }));
+      // left: true tells the admin to remove this player now (a plain bye only marks them offline)
+      client.publish(topic(room, 'hello'), JSON.stringify({ id: myId, bye: true, left: true }));
       client.end();
       client = null;
     }
